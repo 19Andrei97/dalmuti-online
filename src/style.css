@@ -1,0 +1,17 @@
+html, body {
+    height: 100vh;
+}
+
+body {
+    background-color: #cacaca !important;
+}
+
+.modal {
+    position: relative !important;
+    overflow: unset !important;
+}
+
+.game-room{
+    background-color: azure;
+    cursor: pointer;
+}

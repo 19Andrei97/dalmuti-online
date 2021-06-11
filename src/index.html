@@ -1,126 +1,121 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Simplified Dalumti Online v0.9</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-    <script src="./js/main.js"></script>
-  </head>
-  <body style="min-width: 480px;">
-    <div id="error-msg-bg" class="w3-text-white w3-container w3-round" style="z-index: 10; display:none; background-color:rgba(0, 0, 0, 0.5); position:absolute; top: 40%; left:30%"><h2 id="error-msg"></h2></div>
 
-    <!-- Waiting Room Start -->
-    <div id="waiting-room" style="display:none">
-      <!-- Title -->
-      <div class="w3-bar w3-blue-grey w3-card-4">
-        <div class="w3-bar-item w3-padding-16"><b id="title">DalmutiOnline(roomNo)</b></div>
-        <div  class="nickname w3-bar-item w3-button w3-right w3-grey w3-padding-16" onclick="document.getElementById('id02').style.display='block'">placeholder</div>
-      </div>
-      <!-- Listing Room--> 
-      <ul class="w3-ul w3-hoverable" id="room-list">
+<head>
+  <title>The Great Dalmuti</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-      </ul>
-      <!-- info -->
-      <div class="w3-panel w3-blue w3-display-container" style="position:absolute; top: calc(100vh - 266px); height: 250px; width:100%;">
-        <span onclick="this.parentElement.style.display='none'"
-        class="w3-button w3-blue w3-large w3-display-topright">&times;</span>
-        <h3>Changelog v0.9.5</h3>
-        <ul>
-          <li>Click upper right corner to change your name</li>
-          <li><a target="_blank" href="/help">How to play?</a></li>
-        </ul>
-      </div>
+  <link rel="stylesheet" href="style.css">
 
-      <!-- create room modal -->
-      <div id="id01" class="w3-modal">
-        <div class="w3-modal-content">
-          <div class="w3-container w3-card-4">
-            <span onclick="document.getElementById('id01').style.display='none'" class="w3-button w3-display-topright">&times;</span>
-            <form class="w3-container" id="form-create-room">
-              <label><h2><b>Enter a room title</b></h2></label>
-              <p>
-              <input class="w3-input w3-border" autocomplete="off" type="text" id="new-room-name">
-              <p>
-              <button onclick="document.getElementById('id01').style.display='none'" class="w3-btn w3-black" id="new-room-create">OK</button>
-            </form> 
-          </div>
-        </div>
-      </div>
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
-      <!-- set nickname modal -->
-      <div id="id02" class="w3-modal">
-        <div class="w3-modal-content">
-          <div class="w3-container w3-card-4">
-            <span onclick="document.getElementById('id02').style.display='none'" class="w3-button w3-display-topright">&times;</span>
-            <form class="w3-container" id="form-set-nickname">
-              <label><h2><b>Enter a new nickname</b></h2></label>
-              <p>
-              <input class="w3-input w3-border" autocomplete="off" type="text" id="set-nickname">
-              <p>
-              <button onclick="document.getElementById('id02').style.display='none'" class="w3-btn w3-black" id="set-nickname-ok">OK</button>
-            </form> 
-          </div>
-        </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./js/main.js"></script>
+</head>
+
+<body>
+
+  <!-- ERROR MESSAGES -->
+  <!-- Blank input -->
+  <div id="noName" style="z-index: 1200; max-width: 500px;position: absolute; left: 0; right: 0;display: none;"
+    class="fixed-bottom alert alert-danger fade show mx-auto" role="alert">
+    <strong>Attention!</strong> Write something!
+  </div>
+
+  <!-- Main Room Start -->
+  <div id="waiting-room">
+
+    <!-- Title -->
+    <div class="container-fluid bg-secondary">
+      <div class="row">
+        <div class="col-sm-9 p-4"><b id="title">The Great Dalmuti</b></div>
+        <div type="button" data-toggle="modal" style="background-color: #84919c !important;font-size: x-large;"
+          class="nickname col-sm-3 text-center p-4" data-target="#id02">placeholder</div>
       </div>
-      <!-- Waiting Room End -->
     </div>
-    
 
-    <!-- Game Room Start -->
-    <div id="game-room" style="display:none">
-      <!-- Title -->
-      <div class="w3-bar w3-blue-grey w3-card-4">
-        <div class="w3-bar-item w3-padding-16"><b id="room-title">Game Room</b></div>
-        <div class="nickname w3-bar-item w3-right w3-grey w3-padding-16">Name</div>
-      </div>
-
-
-      <div class="w3-row">
-        <div class="w3-col m9 l9 w3-grey" style="height:calc(100vh - 55px); background-image: url('bg.jpg')">
-          <div class="w3-text-white" style="height:calc(100% - 15vh)">
-            <!-- upper 4 players -->
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player0"></div>
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player1"></div>
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player2"></div>
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player3"></div>
-            <!-- field -->
-            <div class="w3-display-container" style="height:calc(100% - 160px)">
-              <div id="field-section" class="w3-display-middle" style="width:50%; position:relative">
-
-              </div>
-
-              <div class="w3-display-bottomright" style="width:10%">
-                <div class="w3-button w3-red" id="play-btn" style="width:100%">PASS</div>
-                <div class="w3-button w3-blue" id="ready-btn" style="width:100%">READY</div>
-              </div>
-            </div>
-            <!-- lower 4 players -->
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player4"></div>
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player5"></div>
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player6"></div>
-            <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed" id="player7"></div>
-          </div>
-          <!-- hand -->
-          <div class="w3-row w3-border" style="height:15vh">
-            <div id="hand" class="w3-col" style="width:85%;height:100%; position:relative">
-              
-            </div>
-
-          </div>
-        </div>
-
-        <!-- chat room-->
-        <div class="w3-col w3-border m3 l3 w3-white" style="height:calc(100vh - 55px)">
-          <ul class="w3-ul" id="chat-messages" style="overflow-y:scroll;height:calc(100% - 39.5px)"></ul>
-          <form id="form-chatting">
-            <input class="w3-input w3-col w3-border" autocomplete="off" id="message-input" type="text" style="width:80%"><button class="w3-button w3-col w3-black" style="width:20%">Send</button>
-          </form>
-        </div>
-      <!-- Game Room End -->
+    <!-- Listing Room-->
+    <div class="container align-items-center">
+      <button class="btn btn-primary p-4 w-100 mt-2" type="button" data-toggle="modal" data-target="#id01">Create
+        Room</button>
+      <div id="room-list"></div>
     </div>
-    
-  </body>
+
+    <!-- Create Room Modal -->
+    <div class="modal fade" id="id01">
+      <div class="modal-dialog">
+        <div class="modal-content">
+
+          <!-- Modal Header -->
+          <div class="modal-header">
+            <h4 class="modal-title">Enter room's name</h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+          </div>
+
+          <!-- Modal body -->
+          <div class="modal-body">
+            <form id="form-create-room">
+              <div class="form-group">
+                <label for="new-room-name" class="col-form-label">Enter the room name:</label>
+                <input autocomplete="off" type="text" id="new-room-name" class="form-control">
+              </div>
+            </form>
+          </div>
+
+          <!-- Modal footer -->
+          <div class="modal-footer">
+            <button type="button" class="btn btn-success" data-dismiss="modal" id="new-room-create">Create</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Name Modal-->
+    <div class="modal fade" id="id02">
+      <div class="modal-dialog">
+        <div class="modal-content">
+
+          <!-- Modal Header -->
+          <div class="modal-header">
+            <h4 class="modal-title">Update nickname</h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+          </div>
+
+          <!-- Modal body -->
+          <div class="modal-body">
+            <form id="form-set-nickname">
+              <div class="form-group">
+                <label for="set-nickname" class="col-form-label">Enter a new nickname:</label>
+                <input autocomplete="off" type="text" id="set-nickname" class="form-control">
+              </div>
+            </form>
+          </div>
+
+          <!-- Modal footer -->
+          <div class="modal-footer">
+            <button type="button" class="btn btn-success" data-dismiss="modal" id="set-nickname-ok">Save</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Info Box -->
+  <div class="fixed-bottom alert alert-warning alert-dismissible fade show mx-2" role="alert">
+    <strong>Informations</strong>
+    <a class="ml-2" target="_blank" href="/help">How to play?</a>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+</body>
+
 </html>
