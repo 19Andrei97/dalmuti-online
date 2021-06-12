@@ -30,69 +30,70 @@
     <!-- Game Room Start -->
     <div id="game-room">
         <!-- Title -->
-        <div class="w3-bar w3-blue-grey w3-card-4">
-            <div class="w3-bar-item w3-padding-16"><b id="room-title">Game Room</b></div>
-            <div class="nickname w3-bar-item w3-right w3-grey w3-padding-16">Name</div>
+        <div class="container text-center" style="height:10vh">
+            <div>
+                <h3 id="room-title">Game Room</h3>
+            </div>
+            <div class="nickname text-secondary">Your Name</div>
         </div>
 
-
-        <div class="w3-row">
-            <div class="w3-col m9 l9 w3-grey">
-                <div class="w3-text-white" style="height:calc(100% - 15vh)">
+        <div class="container-fluid" style="height:90vh">
+            <div class="row" style="height:80%">
+                <div class="col-sm-9 h-100">
                     <!-- upper 4 players -->
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player0">
-                    </div>
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player1">
-                    </div>
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player2">
-                    </div>
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player3">
+                    <div class="row">
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player0">
+                        </div>
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player1">
+                        </div>
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player2">
+                        </div>
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player3">
+                        </div>
                     </div>
                     <!-- field -->
-                    <div class="w3-display-container" style="height:calc(100% - 160px)">
-                        <div id="field-section" class="w3-display-middle" style="width:50%; position:relative">
-
-                        </div>
-
+                    <div class="row">
+                        <div id="field-section" class="w3-display-middle" style="width:50%; position:relative"></div>
                         <div class="w3-display-bottomright" style="width:10%">
-                            <div class="w3-button w3-red" id="play-btn" style="width:100%">PASS</div>
-                            <div class="w3-button w3-blue" id="ready-btn" style="width:100%">READY</div>
+                            <button class="btn btn-danger" id="play-btn" style="width:100%">PASS</button>
+                            <button class="btn btn-info" id="ready-btn" style="width:100%">READY</button>
                         </div>
                     </div>
                     <!-- lower 4 players -->
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player4">
-                    </div>
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player5">
-                    </div>
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player6">
-                    </div>
-                    <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
-                        id="player7">
+                    <div class="row">
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player4">
+                        </div>
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player5">
+                        </div>
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player6">
+                        </div>
+                        <div class="w3-center w3-col w3-border-grey" style="width:25%; height:160px;border:1px dashed"
+                            id="player7">
+                        </div>
                     </div>
                 </div>
-                <!-- hand -->
-                <div class="w3-row w3-border" style="height:15vh">
-                    <div id="hand" class="w3-col" style="width:85%;height:100%; position:relative">
-
+                <!-- chat room-->
+                <div class="col-sm-3 h-100">
+                    <div class="w3-ul" id="chat-messages" style="overflow-y:auto;height:calc(100% - 39.5px)"></div>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="message-input" autocomplete="off"
+                            placeholder="Write a message!" aria-label="Message" aria-describedby="basic-addon2">
+                        <div class="input-group-append">
+                            <button id="form-chatting" class="btn btn-outline-secondary" type="button">Button</button>
+                        </div>
                     </div>
-
                 </div>
             </div>
-
-            <!-- chat room-->
-            <div class="w3-col w3-border m3 l3 w3-white" style="height:calc(100vh - 55px)">
-                <ul class="w3-ul" id="chat-messages" style="overflow-y:scroll;height:calc(100% - 39.5px)"></ul>
-                <form id="form-chatting">
-                    <input class="w3-input w3-col w3-border" autocomplete="off" id="message-input" type="text"
-                        style="width:80%"><button class="w3-button w3-col w3-black" style="width:20%">Send</button>
-                </form>
+            <!-- hand -->
+            <div class="row" style="height:20%">
+                <div id="hand" class="col" style="width:85%;height:100%; position:relative"></div>
             </div>
         </div>
     </div>

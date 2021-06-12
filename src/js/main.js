@@ -58,16 +58,26 @@ $(function () {
   });
 
   // CHAT HELPER
-  $("#form-chatting").submit(() => {
-    socket.emit("chat message", $("#message-input").val());
+  $("#form-chatting").click(() => {
+    if(!/<\/?[a-z][\s\S]*>/i.test($("#message-input").val())){
+      socket.emit("chat message", $("#message-input").val());
 
-    $("#message-input").val("");
+      $("#message-input").val("");
+      return false;
+    } else {
+      $("#message-input").val("Not here my friend");
+    }
     return false;
+  });
+
+  socket.on("chat message", (nickname, msg) => {
+    $("#chat-messages").append($("<div>").text(`${nickname}: ${msg}`));
+    $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
   });
 
   // button, must be checked on server side
   $("#ready-btn").on("click", () => {
-    if (!$("#ready-btn").hasClass("w3-disabled")) {
+    if (!$("#ready-btn").hasClass("disabled")) {
       socket.emit("ready");
     }
   });
@@ -149,10 +159,10 @@ function appendGameRoom(name, length, state) {
 //Need Room specific data updated
 socket.on("refresh game room", (roomData) => {
   if (roomData.game.state == game_state.WAITING) {
-    $("#ready-btn").removeClass("w3-disabled");
+    $("#ready-btn").removeClass("disabled");
   } else {
     // start
-    $("#ready-btn").addClass("w3-disabled");
+    $("#ready-btn").addClass("disabled");
   }
 
   // debug
@@ -173,21 +183,19 @@ socket.on("refresh game room", (roomData) => {
 socket.on("chat connection", (user) => {
   //connected to chat
   if (user.seat > -1)
-    $("#chat-messages").append($("<li>").text(user.nickname + " connected"));
+    $("#chat-messages").append($("<div>").text(user.nickname + " connected").addClass("font-weight-bold"));
   else
-    $("#chat-messages").append($("<li>").text(user.nickname + " disconnected"));
+    $("#chat-messages").append($("<div>").text(user.nickname + " disconnected").addClass("font-weight-bold"));
 });
 
 socket.on("chat announce", (msg, color) => {
-  let $new_msg = $("<li>").text(msg);
-  $new_msg.addClass("w3-text-" + color);
+  let $new_msg = $("<div>").text(msg);
+  $new_msg.style("color" + color);
+  $new_msg.addClass("font-weight-bold")
   $("#chat-messages").append($new_msg);
 });
 
-socket.on("chat message", (nickname, msg) => {
-  $("#chat-messages").append($("<li>").text(nickname + ": " + msg));
-  $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
-});
+
 
 function setPlayable(roomData) {
   // check who?
