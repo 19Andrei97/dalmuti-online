@@ -1,4 +1,3 @@
-let roomNumber = 0;
 let connectNumber = 1;
 let user_count = 0;
 
@@ -130,14 +129,11 @@ class Game{
 
     isOneLeft(){
         let cnt = 0
-        for (let i=0;i<this.order.length;i++)
-            if (this.order[i])
-                cnt++
+        for (let i=0;i<this.order.length;i++) if (this.order[i]) cnt++
 
         return cnt <= 1
     }
 
-    /////////////////////////////////////
     shuffle(array) {
         let counter = array.length;
 
@@ -180,6 +176,5 @@ module.exports = {
     game_state,
     Game,
     user_count,
-    connectNumber,
-    roomNumber
+    connectNumber
 };

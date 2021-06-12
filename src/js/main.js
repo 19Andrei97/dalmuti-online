@@ -9,14 +9,14 @@ var game_state = {
 var socket = io();
 
 $(function () {
-
   // CHECK nickname OR SET NEW
-	let nickname = localStorage.getItem("localnickname")
+  let nickname = localStorage.getItem("localnickname");
+
   if (nickname) {
     $(".nickname").html(`<div>${nickname}</div>`);
-    socket.emit("set new nickname", nickname);
+    socket.emit("set new nickname", nickname, window.location.href.substring(window.location.href.lastIndexOf('/') + 1));
   } else {
-    document.getElementById("id02").style.display = "block";
+    $('#newName').click()
   }
 
   socket.emit("init"); // for sender-only update
@@ -45,7 +45,7 @@ $(function () {
 
     if (nickname !== "") {
       localStorage.setItem("localnickname", nickname);
-      socket.emit("set new nickname", nickname);
+      socket.emit("set new nickname", nickname, window.location.href.substring(window.location.href.lastIndexOf('/') + 1));
       $(".nickname").html(`<div>${nickname}</div>`);
       $("#set-nickname").val("");
     } else {
@@ -81,7 +81,7 @@ $(function () {
   });
 });
 
-// Redirect to Room URL
+// Save room name in local & Redirect to Room URL
 socket.on("connectUrl", (roomId) => {
   window.location.replace(`/room/${roomId}`);
 });
@@ -115,12 +115,14 @@ socket.on("refresh waiting room", (user, rooms, user_count) => {
   let roomCount = 0;
   $("#room-list").empty(); // Clear before adding
 
-  for (const [key, room] of Object.entries(rooms)) { 
+  for (const [key, room] of Object.entries(rooms)) {
     appendGameRoom(key, Object.keys(room.sockets).length, room.game.state);
     roomCount++;
   }
 
-  $("#title").html(`The Great Dalmuti <br><strong>${roomCount} rooms | ${user_count} users online</strong>`);
+  $("#title").html(
+    `The Great Dalmuti <br><strong>${roomCount} rooms | ${user_count} users online</strong>`
+  );
 });
 
 // SHOW GAMEROOM ON MAIN
@@ -186,9 +188,7 @@ socket.on("chat message", (nickname, msg) => {
   $("#chat-messages").append($("<li>").text(nickname + ": " + msg));
   $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
 });
-/////////////////////////////////////
-//
-/////////////////////////////////////
+
 function setPlayable(roomData) {
   // check who?
   let cur = -1;
@@ -211,7 +211,7 @@ function setPlayable(roomData) {
 
 function showLoadingText() {
   //waiting room
-  $("#title").text("Connecting... Please Wait");
+  $("#title").text("Connecting...Please Wait");
   $("#room-list").empty();
 }
 
@@ -374,6 +374,9 @@ function reloadField(roomData) {
     }
 }
 
-$(document).on('keydown', (e)=>{
-  if(e.keyCode === 13) e.preventDefault()
-})
+$(document).on("keydown", (e) => {
+  if (e.keyCode === 13 && $("#id02").css("display") !== "none") {
+    e.preventDefault();
+    $("set-nickname-ok").click();
+  } else if (e.keyCode === 13) e.preventDefault();
+});

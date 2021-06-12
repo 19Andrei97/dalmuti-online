@@ -9,9 +9,8 @@ let {
   Game,
   user_count,
   connectNumber,
-  roomNumber,
 } = require("./server/config");
-let rooms = {};
+let roomsInfo = { roomNumber: 0, rooms: {} };
 
 var port = process.env.PORT || 8080;
 app.use(express.static(__dirname + "/src"));
@@ -25,8 +24,9 @@ app.get("/help", (req, res) => {
 });
 
 app.get(`/room/:roomName`, cors(), (req, res, next) => {
-  if(rooms[req.params.roomName]) res.sendFile(__dirname + "/src/room.html");
-  else next()
+  if (roomsInfo.rooms[req.params.roomName])
+    res.sendFile(__dirname + "/src/room.html");
+  else next();
 });
 
 // catch 404 and forward to error handler
@@ -58,7 +58,7 @@ io.on("connection", (socket) => {
   io.to("waiting room").emit(
     "refresh waiting room",
     socket.userData,
-    rooms,
+    roomsInfo.rooms,
     user_count
   );
 
@@ -67,36 +67,41 @@ io.on("connection", (socket) => {
     socket.userData.nickname + " joined main room"
   );
 
-  /////////////////////////////////////
-  /// Player settings
-  /////////////////////////////////////
+  //! PLAYER SETTINGS
+
   socket.on("init", () => {
     socket.emit("update sender", socket.userData);
   });
 
-  socket.on("set new nickname", (n_nickname) => {
+  // Set nickname and check adding to room
+  socket.on("set new nickname", (n_nickname, roomId) => {
     console.log(
       "\x1b[32mUPDATE:\x1b[0m",
       "Nickname change from " + socket.userData.nickname + " to " + n_nickname
     );
     socket.userData.nickname = n_nickname;
+
+    // Check if player should be assosiacted to a room
+    if (roomsInfo.rooms.hasOwnProperty(roomId)) {
+      joinRoom(socket, roomsInfo.rooms, roomId);
+    }
+
     socket.emit("update sender", socket.userData);
   });
 
-  /////////////////////////////////////
-  /// Server things
-  /////////////////////////////////////
+  //! ROOMS FUNCTIONS
+
   // CREATE ROOM
   socket.on("create game room", (room_name) => {
-    roomNumber++;
-    let idRoom = `${roomNumber}-${room_name}`;
-    joinRoom(socket, rooms, idRoom); // Use helper to create and join room
+    roomsInfo.roomNumber++;
+    let idRoom = `${roomsInfo.roomNumber}-${room_name}`;
+    joinRoom(socket, roomsInfo.rooms, idRoom); // Use helper to create and join room
     socket.emit("connectUrl", idRoom);
   });
 
-  //Room is identified by number+name
+  // JOIN ROOM
   socket.on("join game room", (room_name) => {
-    joinRoom(socket, rooms, room_name);
+    joinRoom(socket, roomsInfo.rooms, room_name);
     socket.emit("connectUrl", room_name);
   });
 
@@ -113,43 +118,38 @@ io.on("connection", (socket) => {
 
     // can only ready during waiting
     if (
-      rooms[room_name].game.state == game_state.WAITING &&
+      roomsInfo.rooms[room_name].game.state == game_state.WAITING &&
       !socket.userData.ready
     ) {
       socket.userData.ready = true;
-      rooms[room_name].game.readyCount++;
-      syncUserToRoom(socket, rooms);
+      roomsInfo.rooms[room_name].game.readyCount++;
+      syncUserToRoom(socket, roomsInfo.rooms);
 
       // send out updated data
-      io.to(room_name).emit(
-        "refresh game room",
-        rooms[room_name]
-      );
+      io.to(room_name).emit("refresh game room", roomsInfo.rooms[room_name]);
 
       // check game state, is it WAITING? more than 2 ready?
 
       // Shared data, so use roomData not userData
       if (
-        rooms[room_name].length >= 2 &&
-        rooms[room_name].game.readyCount == rooms[room_name].length
+        roomsInfo.rooms[room_name].length >= 2 &&
+        roomsInfo.rooms[room_name].game.readyCount ==
+          roomsInfo.rooms[room_name].length
       ) {
         //start game
         console.log("\x1b[36mNEW:\x1b[0m", room_name + ": game started");
         io.to(room_name).emit("chat announce", "The game has started.", "blue");
         // set order, shuffle, etc.
-        rooms[room_name].game.start(
-          rooms[room_name]
-        );
+        roomsInfo.rooms[room_name].game.start(roomsInfo.rooms[room_name]);
 
         // distribute
-        console.log(rooms[room_name]);
-        let handlim = Math.floor(80 / rooms[room_name].length);
+        let handlim = Math.floor(80 / roomsInfo.rooms[room_name].length);
         let cnt = 0;
         for (const [sid, user] of Object.entries(
-          rooms[room_name].sockets
+          roomsInfo.rooms[room_name].sockets
         )) {
           for (let i = cnt * handlim; i < handlim * cnt + handlim; i++) {
-            user.hand.push(rooms[room_name].game.deck[i]); // userData and room user Data not in sync
+            user.hand.push(roomsInfo.rooms[room_name].game.deck[i]); // userData and room user Data not in sync
           }
           cnt++;
         }
@@ -157,13 +157,10 @@ io.on("connection", (socket) => {
         io.to("waiting room").emit(
           "refresh waiting room",
           socket.userData,
-          rooms,
+          roomsInfo.rooms,
           user_count
         ); // notify start
-        io.to(room_name).emit(
-          "refresh game room",
-          rooms[room_name]
-        );
+        io.to(room_name).emit("refresh game room", roomsInfo.rooms[room_name]);
       }
     }
   });
@@ -172,12 +169,14 @@ io.on("connection", (socket) => {
     let room_name = socket.userData.cur_room;
 
     // but first of all, is it playing?
-    if (socket.adapter.rooms[room_name].game.state != game_state.PLAYING) {
+    if (
+      socket.adapter.roomsInfo.rooms[room_name].game.state != game_state.PLAYING
+    ) {
       socket.emit("alert", "This should not happen.");
       return;
     }
 
-    if (checkOrder(socket, socket.adapter.rooms[room_name])) {
+    if (checkOrder(socket, socket.adapter.roomsInfo.rooms[room_name])) {
       // delete 0 cards, this won't happen unless someone messed with client code
       for (const [card, val] of Object.entries(selected_card)) {
         if (val == 0) delete selected_card[card];
@@ -187,8 +186,8 @@ io.on("connection", (socket) => {
       // check PASS
       if (Object.keys(selected_card).length == 0) {
         // 0 card submitted
-        let tmp_idx = socket.adapter.rooms[room_name].game.cur_order_idx; //현재 순서
-        socket.adapter.rooms[room_name].game.cur_order[tmp_idx] = 0; // pass
+        let tmp_idx = roomsInfo.rooms[room_name].game.cur_order_idx; //현재 순서
+        roomsInfo.rooms[room_name].game.cur_order[tmp_idx] = 0; // pass
 
         // if this is last pass, erase last hand give prior to last player who played
         // also renew cur_order for next round
@@ -265,23 +264,22 @@ io.on("connection", (socket) => {
       socket.userData.nickname + " disconnected from server"
     );
 
-    updateRoomDisconnect(socket, socket.userData.cur_room, rooms);
+    updateRoomDisconnect(socket, socket.userData.cur_room, roomsInfo.rooms);
 
     io.to("waiting room").emit(
       "refresh waiting room",
       socket.userData,
-      rooms,
+      roomsInfo.rooms,
       user_count
     );
     //We want to avoid user from disconnecting during game
     //so if this happens its 'all disconnect'. no leaving during the game
     // redistribute
   });
-
   //Game, broadcast only to same room
 });
 
-/// HELPER
+//! HELPER
 
 // ADD USER TO ROOM IN SERVER
 function syncUserToRoom(socket, roomObj) {
@@ -290,7 +288,7 @@ function syncUserToRoom(socket, roomObj) {
     socket.userData.cur_room != "waiting room" &&
     roomObj[socket.userData.cur_room]
   ) {
-    if(!roomObj[socket.userData.cur_room].sockets){
+    if (!roomObj[socket.userData.cur_room].sockets) {
       roomObj[socket.userData.cur_room].sockets = {};
       roomObj[socket.userData.cur_room].sockets[socket.id] = socket.userData;
     } else {
@@ -300,7 +298,7 @@ function syncUserToRoom(socket, roomObj) {
   // Add user to room in server
 }
 
-// called upon leaving room or disconnection
+// DISCONNECT
 function updateRoomDisconnect(socket, room_name, roomsObj) {
   socket.leave(room_name);
   socket.join("waiting room");
@@ -308,17 +306,15 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
   // update room
   if (roomsObj[room_name]) {
     roomsObj[room_name].seats[socket.userData.seat] = false;
+    delete roomsObj[room_name].sockets[socket.id]; // Delete player from room
+
     // undo ready if left with 'ready' before the game start
-    if (socket.userData.ready)
-      roomsObj[room_name].game.readyCount--;
+    if (socket.userData.ready) roomsObj[room_name].game.readyCount--;
 
     // user left during the game
     // omit from order list
     if (roomsObj[room_name].game.state == game_state.PLAYING) {
-      roomsObj[room_name].game.updateOrder(
-        socket.userData.seat,
-        room_name
-      );
+      roomsObj[room_name].game.updateOrder(socket.userData.seat, room_name);
 
       if (roomsObj[room_name].game.isOneLeft()) {
         io.to(room_name).emit(
@@ -333,22 +329,25 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
         )) {
           userData.reset();
         }
-        //
+
+        delete roomsObj[room_name];
       }
 
       // pass or evaluate or refresh during game...? pass turn?
-      if (
-        roomsObj[room_name].game.cur_order_idx ==
-        socket.userData.seat
-      ) {
+      if (roomsObj[room_name].game.cur_order_idx == socket.userData.seat) {
         // pass turn
         roomsObj[room_name].game.nextPlayer({});
       }
       // 아무튼 그래야 자기 턴인 애가 나갔을 때, 아닌애가 나갔을 때
-      io.to(room_name).emit(
-        "refresh game room",
-        roomsObj[room_name]
-      );
+      io.to(room_name).emit("refresh game room", roomsObj[room_name]);
+
+    }
+
+    // Loop delete empty room exepct this
+    for (const key in roomsObj) {
+      if (Object.keys(roomsObj[key].sockets).length <= 0 && key !== room_name) {
+        delete roomsObj[key];
+      }
     }
   }
 
@@ -392,7 +391,7 @@ function joinRoom(socket, roomObj, room_name) {
     socket.emit(
       "refresh waiting room",
       socket.userData,
-      rooms,
+      roomsInfo.rooms,
       user_count
     );
     socket.emit("alert", "Room is full");
@@ -412,10 +411,11 @@ function joinRoom(socket, roomObj, room_name) {
   io.to("waiting room").emit(
     "refresh waiting room",
     socket.userData,
-    rooms,
+    roomsInfo.rooms,
     user_count
   );
-  io.to(room_name).emit("refresh game room", rooms[room_name]); // send info about room
+
+  io.to(room_name).emit("refresh game room", roomsInfo.rooms[room_name]); // send info about room
   io.to(room_name).emit("chat connection", socket.userData);
 
   socket.emit("update sender", socket.userData);
