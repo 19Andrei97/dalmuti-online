@@ -9,8 +9,8 @@ let {
   Game,
   user_count,
   connectNumber,
+  roomsInfo,
 } = require("./server/config");
-let roomsInfo = { roomNumber: 0, rooms: {} };
 
 var port = process.env.PORT || 8080;
 app.use(express.static(__dirname + "/src"));
@@ -24,7 +24,10 @@ app.get("/help", (req, res) => {
 });
 
 app.get(`/room/:roomName`, cors(), (req, res, next) => {
-  if (roomsInfo.rooms[req.params.roomName])
+  if (
+    roomsInfo.rooms.open[req.params.roomName] ||
+    roomsInfo.rooms.hide[req.params.roomName]
+  )
     res.sendFile(__dirname + "/src/room.html");
   else next();
 });
@@ -58,10 +61,10 @@ io.on("connection", (socket) => {
   io.to("waiting room").emit(
     "refresh waiting room",
     socket.userData,
-    roomsInfo.rooms,
+    roomsInfo.rooms.open,
     user_count
   );
-
+ 
   console.log(
     "\x1b[36mNEW:\x1b[0m",
     socket.userData.nickname + " joined main room"
@@ -82,7 +85,10 @@ io.on("connection", (socket) => {
     socket.userData.nickname = n_nickname;
 
     // Check if player should be assosiacted to a room
-    if (roomsInfo.rooms.hasOwnProperty(roomId)) {
+    if (
+      roomsInfo.rooms.open.hasOwnProperty(roomId) ||
+      roomsInfo.rooms.hide.hasOwnProperty(roomId)
+    ) {
       joinRoom(socket, roomsInfo.rooms, roomId);
     }
 
@@ -92,10 +98,10 @@ io.on("connection", (socket) => {
   //! ROOMS FUNCTIONS
 
   // CREATE ROOM
-  socket.on("create game room", (room_name) => {
+  socket.on("create game room", (room_name, hide) => {
     roomsInfo.roomNumber++;
     let idRoom = `${roomsInfo.roomNumber}-${room_name}`;
-    joinRoom(socket, roomsInfo.rooms, idRoom); // Use helper to create and join room
+    joinRoom(socket, roomsInfo.rooms, idRoom, hide); // Use helper to create and join room
     socket.emit("connectUrl", idRoom);
   });
 
@@ -105,6 +111,7 @@ io.on("connection", (socket) => {
     socket.emit("connectUrl", room_name);
   });
 
+  // SHOW MESSAGE
   socket.on("chat message", (msg) => {
     io.to(socket.userData.cur_room).emit(
       "chat message",
@@ -117,53 +124,148 @@ io.on("connection", (socket) => {
   socket.on("ready", () => {
     let room_name = socket.userData.cur_room;
 
-    // Ready only on Waiting room
-    if (
-      roomsInfo.rooms[room_name].game.state == game_state.WAITING &&
-      !socket.userData.ready
-    ) {
-      socket.userData.ready = true;
-      roomsInfo.rooms[room_name].game.readyCount++;
-      syncUserToRoom(socket, roomsInfo.rooms);
+    if (roomsInfo.rooms.open.hasOwnProperty(room_name)) {
+      if (socket.userData.ready === true) {
+        socket.userData.ready = false;
+        roomsInfo.rooms.open[room_name].game.readyCount--;
+        syncUserToRoom(socket, roomsInfo.rooms.open);
 
-      // send out updated data
-      io.to(room_name).emit("refresh game room", roomsInfo.rooms[room_name]);
+        io.to(room_name).emit(
+          "refresh game room",
+          roomsInfo.rooms.open[room_name]
+        );
+        return;
+      }
 
-      // check game state, is it WAITING? more than 2 ready?
-
-      // Shared data, so use roomData not userData
+      // Ready only on Waiting room
       if (
-        Object.keys(roomsInfo.rooms[room_name].sockets).length >= 2 &&
-        roomsInfo.rooms[room_name].game.readyCount ==
-        Object.keys(roomsInfo.rooms[room_name].sockets).length
+        roomsInfo.rooms.open[room_name].game.state == game_state.WAITING &&
+        !socket.userData.ready
       ) {
-        //start game
-        console.log("\x1b[36mNEW:\x1b[0m", room_name + ": game started");
-        io.to(room_name).emit("chat announce", "The game has started.", "blue");
+        socket.userData.ready = true;
+        roomsInfo.rooms.open[room_name].game.readyCount++;
+        syncUserToRoom(socket, roomsInfo.rooms.open);
 
-        // set order, shuffle, etc.
-        roomsInfo.rooms[room_name].game.start(roomsInfo.rooms[room_name]);
+        // send out updated data
+        io.to(room_name).emit(
+          "refresh game room",
+          roomsInfo.rooms.open[room_name]
+        );
 
-        // distribute
-        let handlim = Math.floor(80 / Object.keys(roomsInfo.rooms[room_name].sockets).length);
-        let cnt = 0;
-        for (const [sid, user] of Object.entries(
-          roomsInfo.rooms[room_name].sockets
-        )) {
-          for (let i = cnt * handlim; i < handlim * cnt + handlim; i++) {
-            user.hand.push(roomsInfo.rooms[room_name].game.deck[i]); // userData and room user Data not in sync
+        // CHECK TO START GAME
+        // Shared data, so use roomData not userData
+        if (
+          Object.keys(roomsInfo.rooms.open[room_name].sockets).length >= 2 &&
+          roomsInfo.rooms.open[room_name].game.readyCount ==
+            Object.keys(roomsInfo.rooms.open[room_name].sockets).length
+        ) {
+          //start game
+          console.log("\x1b[36mNEW:\x1b[0m", room_name + ": game started");
+          io.to(room_name).emit(
+            "chat announce",
+            "The game has started.",
+            "blue"
+          );
+
+          // set order, shuffle, etc.
+          roomsInfo.rooms.open[room_name].game.start(
+            roomsInfo.rooms.open[room_name]
+          );
+
+          // distribute
+          let handlim = Math.floor(
+            80 / Object.keys(roomsInfo.rooms.open[room_name].sockets).length
+          );
+          let cnt = 0;
+          for (const [sid, user] of Object.entries(
+            roomsInfo.rooms.open[room_name].sockets
+          )) {
+            for (let i = cnt * handlim; i < handlim * cnt + handlim; i++) {
+              user.hand.push(roomsInfo.rooms.open[room_name].game.deck[i]); // userData and room user Data not in sync
+            }
+            cnt++;
           }
-          cnt++;
+
+          io.to("waiting room").emit(
+            "refresh waiting room",
+            socket.userData,
+            roomsInfo.rooms.open,
+            user_count
+          ); // notify start to main room
+
+          io.to(room_name).emit(
+            "refresh game room",
+            roomsInfo.rooms.open[room_name]
+          );
         }
+      }
+    } else if (roomsInfo.rooms.hide.hasOwnProperty(room_name)) {
+      if (socket.userData.ready === true) {
+        socket.userData.ready = false;
+        roomsInfo.rooms.hide[room_name].game.readyCount--;
+        syncUserToRoom(socket, roomsInfo.rooms.hide);
 
-        io.to("waiting room").emit(
-          "refresh waiting room",
-          socket.userData,
-          roomsInfo.rooms,
-          user_count
-        ); // notify start to main room
+        io.to(room_name).emit(
+          "refresh game room",
+          roomsInfo.rooms.hide[room_name]
+        );
+        return;
+      }
 
-        io.to(room_name).emit("refresh game room", roomsInfo.rooms[room_name]);
+      // Ready only on Waiting room
+      if (
+        roomsInfo.rooms.hide[room_name].game.state == game_state.WAITING &&
+        !socket.userData.ready
+      ) {
+        socket.userData.ready = true;
+        roomsInfo.rooms.hide[room_name].game.readyCount++;
+        syncUserToRoom(socket, roomsInfo.rooms.hide);
+
+        // send out updated data
+        io.to(room_name).emit(
+          "refresh game room",
+          roomsInfo.rooms.hide[room_name]
+        );
+
+        // CHECK TO START GAME
+        // Shared data, so use roomData not userData
+        if (
+          Object.keys(roomsInfo.rooms.hide[room_name].sockets).length >= 2 &&
+          roomsInfo.rooms.hide[room_name].game.readyCount ==
+            Object.keys(roomsInfo.rooms.hide[room_name].sockets).length
+        ) {
+          //start game
+          console.log("\x1b[36mNEW:\x1b[0m", room_name + ": game started");
+          io.to(room_name).emit(
+            "chat announce",
+            "The game has started.",
+            "blue"
+          );
+
+          // set order, shuffle, etc.
+          roomsInfo.rooms.hide[room_name].game.start(
+            roomsInfo.rooms.hide[room_name]
+          );
+
+          // distribute
+          let handlim = Math.floor(
+            80 / Object.keys(roomsInfo.rooms.hide[room_name].sockets).length
+          );
+          let cnt = 0;
+          for (const [sid, user] of Object.entries(
+            roomsInfo.rooms.hide[room_name].sockets
+          )) {
+            for (let i = cnt * handlim; i < handlim * cnt + handlim; i++) {
+              user.hand.push(roomsInfo.rooms.hide[room_name].game.deck[i]); // userData and room user Data not in sync
+            }
+            cnt++;
+          }
+
+          io.to(room_name).emit(
+            "refresh game room",
+            roomsInfo.rooms.hide[room_name]
+          );
+        }
       }
     }
   });
@@ -171,92 +273,177 @@ io.on("connection", (socket) => {
   socket.on("play", (selected_card) => {
     let room_name = socket.userData.cur_room;
 
-    // but first of all, is it playing?
-    if (
-      roomsInfo.rooms[room_name].game.state != game_state.PLAYING
-    ) {
-      socket.emit("alert", "This should not happen.");
-      return;
-    }
-
-    if (checkOrder(socket, roomsInfo.rooms[room_name])) {
-      // delete 0 cards, this won't happen unless someone messed with client code
-      for (const [card, val] of Object.entries(selected_card)) {
-        if (val == 0) delete selected_card[card];
+    if (roomsInfo.rooms.open.hasOwnProperty(room_name)) {
+      // but first of all, is it playing?
+      if (roomsInfo.rooms.open[room_name].game.state != game_state.PLAYING) {
+        socket.emit("alert", "This should not happen.");
+        return;
       }
-      console.log(selected_card);
 
-      // check PASS
-      if (Object.keys(selected_card).length == 0) {
-        // 0 card submitted
-        let tmp_idx = roomsInfo.rooms[room_name].game.cur_order_idx; //현재 순서
-        roomsInfo.rooms[room_name].game.cur_order[tmp_idx] = 0; // pass
+      if (checkOrder(socket, roomsInfo.rooms.open[room_name])) {
+        // delete 0 cards, this won't happen unless someone messed with client code
+        for (const [card, val] of Object.entries(selected_card)) {
+          if (val == 0) delete selected_card[card];
+        }
+        console.log(selected_card);
 
-        // if this is last pass, erase last hand give prior to last player who played
-        // also renew cur_order for next round
-        // and update last hand. Last hand will be used to display cards on field
-        roomsInfo.rooms[room_name].game.nextPlayer(selected_card);
+        // check PASS
+        if (Object.keys(selected_card).length == 0) {
 
-        io.to(room_name).emit(
-          "refresh game room",
-          roomsInfo.rooms[room_name]
-        );
-      } else if (
-        checkValidity(socket, roomsInfo.rooms[room_name], selected_card)
-      ) {
-        if (checkRule(roomsInfo.rooms[room_name], selected_card)) {
-          // Everything seems fine.
+          let tmp_idx = roomsInfo.rooms.open[room_name].game.cur_order_idx;
+          roomsInfo.rooms.open[room_name].game.cur_order[tmp_idx] = 0; // pass
+          // if this is last pass, erase last hand give prior to last player who played
+          // also renew cur_order for next round
+          // and update last hand. Last hand will be used to display cards on field
+          roomsInfo.rooms.open[room_name].game.nextPlayer(selected_card);
 
-          // update hand
-          updateHand(socket, roomsInfo.rooms[room_name], selected_card);
-
-          //Winning condition
-          if (
-            roomsInfo.rooms[room_name].sockets[socket.id].hand.length == 0
-          ) {
-            // win due to empty hand
-            roomsInfo.rooms[room_name].game.updateOrder(
-              socket.userData.seat,
-              room_name
-            );
-            io.to(room_name).emit(
-              "chat announce",
-              socket.userData.nickname + " has won!!!",
-              "green"
-            );
-
-            if (roomsInfo.rooms[room_name].game.isOneLeft()) {
-              io.to(room_name).emit(
-                "chat announce",
-                "The game has ended due to only one player remaining.",
-                "red"
-              );
-              //end game
-              roomsInfo.rooms[room_name].game.end();
-              for (const [sid, userData] of Object.entries(
-                roomsInfo.rooms[room_name].sockets
-              )) {
-                userData.reset();
-              }
-            }
-          }
-
-          roomsInfo.rooms[room_name].game.nextPlayer(selected_card);
-          // refresh
           io.to(room_name).emit(
             "refresh game room",
-            roomsInfo.rooms[room_name]
+            roomsInfo.rooms.open[room_name]
           );
+        } else if (
+          checkValidity(socket, roomsInfo.rooms.open[room_name], selected_card)
+        ) {
+          if (checkRule(roomsInfo.rooms.open[room_name], selected_card)) {
+            // Everything seems fine.
+
+            // update hand
+            updateHand(socket, roomsInfo.rooms.open[room_name], selected_card);
+
+            //Winning condition
+            if (
+              roomsInfo.rooms.open[room_name].sockets[socket.id].hand.length ==
+              0
+            ) {
+              // win due to empty hand
+              roomsInfo.rooms.open[room_name].game.updateOrder(
+                socket.userData.seat,
+                room_name
+              );
+              io.to(room_name).emit(
+                "chat announce",
+                socket.userData.nickname + " has won!!!",
+                "green"
+              );
+
+              if (roomsInfo.rooms.open[room_name].game.isOneLeft()) {
+                io.to(room_name).emit(
+                  "chat announce",
+                  "The game has ended due to only one player remaining.",
+                  "red"
+                );
+                //end game
+                roomsInfo.rooms.open[room_name].game.end();
+                for (const [sid, userData] of Object.entries(
+                  roomsInfo.rooms.open[room_name].sockets
+                )) {
+                  userData.reset();
+                }
+              }
+            }
+
+            roomsInfo.rooms.open[room_name].game.nextPlayer(selected_card);
+            // refresh
+            io.to(room_name).emit(
+              "refresh game room",
+              roomsInfo.rooms.open[room_name]
+            );
+          } else {
+            // nope
+            socket.emit("alert", "Please choose the right cards.");
+          }
         } else {
-          // nope
-          socket.emit("alert", "Please choose the right cards.");
+          socket.emit("alert", "This should not happen.");
         }
-      } else {
-        socket.emit("alert", "This should not happen.");
+      } // check order
+      else {
+        socket.emit("alert", "Please wait for your turn.");
       }
-    } // check order
-    else {
-      socket.emit("alert", "Please wait for your turn.");
+    } else if (roomsInfo.rooms.hide.hasOwnProperty(room_name)) {
+      // but first of all, is it playing?
+      if (roomsInfo.rooms.hide[room_name].game.state != game_state.PLAYING) {
+        socket.emit("alert", "This should not happen.");
+        return;
+      }
+
+      if (checkOrder(socket, roomsInfo.rooms.hide[room_name])) {
+        // delete 0 cards, this won't happen unless someone messed with client code
+        for (const [card, val] of Object.entries(selected_card)) {
+          if (val == 0) delete selected_card[card];
+        }
+        console.log(selected_card);
+
+        // check PASS
+        if (Object.keys(selected_card).length == 0) {
+          let tmp_idx = roomsInfo.rooms.hide[room_name].game.cur_order_idx;
+          roomsInfo.rooms.hide[room_name].game.cur_order[tmp_idx] = 0; // pass
+          // if this is last pass, erase last hand give prior to last player who played
+          // also renew cur_order for next round
+          // and update last hand. Last hand will be used to display cards on field
+          roomsInfo.rooms.hide[room_name].game.nextPlayer(selected_card);
+
+          io.to(room_name).emit(
+            "refresh game room",
+            roomsInfo.rooms.hide[room_name]
+          );
+        } else if (
+          checkValidity(socket, roomsInfo.rooms.hide[room_name], selected_card)
+        ) {
+          if (checkRule(roomsInfo.rooms.hide[room_name], selected_card)) {
+            // Everything seems fine.
+
+            // update hand
+            updateHand(socket, roomsInfo.rooms.hide[room_name], selected_card);
+
+            //Winning condition
+            if (
+              roomsInfo.rooms.hide[room_name].sockets[socket.id].hand.length ==
+              0
+            ) {
+              // win due to empty hand
+              roomsInfo.rooms.hide[room_name].game.updateOrder(
+                socket.userData.seat,
+                room_name
+              );
+              io.to(room_name).emit(
+                "chat announce",
+                socket.userData.nickname + " has won!!!",
+                "green"
+              );
+
+              if (roomsInfo.rooms.hide[room_name].game.isOneLeft()) {
+                io.to(room_name).emit(
+                  "chat announce",
+                  "The game has ended due to only one player remaining.",
+                  "red"
+                );
+                //end game
+                roomsInfo.rooms.hide[room_name].game.end();
+                for (const [sid, userData] of Object.entries(
+                  roomsInfo.rooms.hide[room_name].sockets
+                )) {
+                  userData.reset();
+                }
+              }
+            }
+
+            roomsInfo.rooms.hide[room_name].game.nextPlayer(selected_card);
+            // refresh
+            io.to(room_name).emit(
+              "refresh game room",
+              roomsInfo.rooms.hide[room_name]
+            );
+          } else {
+            // nope
+            socket.emit("alert", "Please choose the right cards.");
+          }
+        } else {
+          socket.emit("alert", "This should not happen.");
+        }
+      } // check order
+      else {
+        socket.emit("alert", "Please wait for your turn.");
+      }
     }
   });
 
@@ -267,17 +454,26 @@ io.on("connection", (socket) => {
       socket.userData.nickname + " disconnected from server"
     );
 
-    updateRoomDisconnect(socket, socket.userData.cur_room, roomsInfo.rooms);
+    if (roomsInfo.rooms.open.hasOwnProperty(socket.userData.cur_room)) {
+      updateRoomDisconnect(
+        socket,
+        socket.userData.cur_room,
+        roomsInfo.rooms.open
+      );
 
-    io.to("waiting room").emit(
-      "refresh waiting room",
-      socket.userData,
-      roomsInfo.rooms,
-      user_count
-    );
-    //We want to avoid user from disconnecting during game
-    //so if this happens its 'all disconnect'. no leaving during the game
-    // redistribute
+      io.to("waiting room").emit(
+        "refresh waiting room",
+        socket.userData,
+        roomsInfo.rooms.open,
+        user_count
+      );
+    } else if (roomsInfo.rooms.hide.hasOwnProperty(socket.userData.cur_room)) {
+      updateRoomDisconnect(
+        socket,
+        socket.userData.cur_room,
+        roomsInfo.rooms.hide
+      );
+    }
   });
   //Game, broadcast only to same room
 });
@@ -343,7 +539,6 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
       }
       // 아무튼 그래야 자기 턴인 애가 나갔을 때, 아닌애가 나갔을 때
       io.to(room_name).emit("refresh game room", roomsObj[room_name]);
-
     }
 
     // Loop delete empty room exepct this
@@ -363,65 +558,195 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
 }
 
 // JOIN THE ROOM
-function joinRoom(socket, roomObj, room_name) {
+function joinRoom(socket, roomObj, room_name, hide) {
   // seat vacancy check
   socket.leave("waiting room");
   socket.join(room_name);
   console.log(socket.userData.nickname + " joined " + room_name);
 
-  // integrity update
-  if (!roomObj[room_name] || !roomObj[room_name].seats) {
-    roomObj[room_name] = {};
-    roomObj[room_name].seats = new Array(8).fill(false);
-  }
-
-  // Loop for free seats
-  for (let i = 0; i < 8; i++) {
-    if (!roomObj[room_name].seats[i]) {
-      // is vacant
-      roomObj[room_name].seats[i] = true;
-      socket.userData.seat = i;
-      break;
+  if (roomsInfo.rooms.open.hasOwnProperty(room_name)) {
+    // Loop for free seats
+    for (let i = 0; i < 8; i++) {
+      if (!roomObj.open[room_name].seats[i]) {
+        // is vacant
+        roomObj.open[room_name].seats[i] = true;
+        socket.userData.seat = i;
+        break;
+      }
     }
-  }
 
-  // Check if room is full
-  if (socket.userData.seat == -1) {
-    //TODO full emit
-    console.log("room full");
-    socket.leave(room_name);
-    socket.join("waiting room");
-    socket.emit(
+    // Check if room is full
+    if (socket.userData.seat == -1) {
+      //TODO full emit
+      console.log("room full");
+      socket.leave(room_name);
+      socket.join("waiting room");
+      socket.emit(
+        "refresh waiting room",
+        socket.userData,
+        roomsInfo.rooms.open,
+        user_count
+      );
+      socket.emit("alert", "Room is full");
+      return false;
+    }
+
+    // if there is no game object, give one
+    if (!roomObj.open[room_name].game)
+      roomObj.open[room_name].game = new Game();
+
+    //update user
+    socket.userData.cur_room = room_name;
+
+    //update room data
+    syncUserToRoom(socket, roomObj.open);
+
+    //refresh list
+    io.to("waiting room").emit(
       "refresh waiting room",
       socket.userData,
-      roomsInfo.rooms,
+      roomsInfo.rooms.open,
       user_count
     );
-    socket.emit("alert", "Room is full");
-    return false;
+
+    io.to(room_name).emit("refresh game room", roomsInfo.rooms.open[room_name]); // send info about room
+    io.to(room_name).emit("chat connection", socket.userData);
+
+    socket.emit("update sender", socket.userData);
+  } else if (roomsInfo.rooms.hide.hasOwnProperty(room_name)) {
+    // Loop for free seats
+    for (let i = 0; i < 8; i++) {
+      if (!roomObj.hide[room_name].seats[i]) {
+        // is vacant
+        roomObj.hide[room_name].seats[i] = true;
+        socket.userData.seat = i;
+        break;
+      }
+    }
+
+    // Check if room is full
+    if (socket.userData.seat == -1) {
+      //TODO full emit
+      console.log("room full");
+      socket.leave(room_name);
+      socket.join("waiting room");
+      socket.emit("alert", "Room is full");
+      return false;
+    }
+
+    // if there is no game object, give one
+    if (!roomObj.hide[room_name].game)
+      roomObj.hide[room_name].game = new Game();
+
+    //update user
+    socket.userData.cur_room = room_name;
+
+    //update room data
+    syncUserToRoom(socket, roomObj.hide);
+
+    //refresh list
+    io.to(room_name).emit("refresh game room", roomsInfo.rooms.hide[room_name]); // send info about room
+
+    io.to(room_name).emit("chat connection", socket.userData);
+
+    socket.emit("update sender", socket.userData);
+  } else if (hide) {
+    if (!roomObj.hide[room_name] || !roomObj.hide[room_name].seats) {
+      roomObj.hide[room_name] = {};
+      roomObj.hide[room_name].seats = new Array(8).fill(false);
+    }
+
+    // Loop for free seats
+    for (let i = 0; i < 8; i++) {
+      if (!roomObj.hide[room_name].seats[i]) {
+        // is vacant
+        roomObj.hide[room_name].seats[i] = true;
+        socket.userData.seat = i;
+        break;
+      }
+    }
+
+    // Check if room is full
+    if (socket.userData.seat == -1) {
+      //TODO full emit
+      console.log("room full");
+      socket.leave(room_name);
+      socket.join("waiting room");
+      socket.emit("alert", "Room is full");
+      return false;
+    }
+
+    // if there is no game object, give one
+    if (!roomObj.hide[room_name].game)
+      roomObj.hide[room_name].game = new Game();
+
+    //update user
+    socket.userData.cur_room = room_name;
+
+    //update room data
+    syncUserToRoom(socket, roomObj.hide);
+
+    //refresh list
+    io.to(room_name).emit("refresh game room", roomsInfo.rooms.hide[room_name]); // send info about room
+
+    io.to(room_name).emit("chat connection", socket.userData);
+
+    socket.emit("update sender", socket.userData);
+  } else {
+    if (!roomObj.open[room_name] || !roomObj.open[room_name].seats) {
+      roomObj.open[room_name] = {};
+      roomObj.open[room_name].seats = new Array(8).fill(false);
+    }
+
+    // Loop for free seats
+    for (let i = 0; i < 8; i++) {
+      if (!roomObj.open[room_name].seats[i]) {
+        // is vacant
+        roomObj.open[room_name].seats[i] = true;
+        socket.userData.seat = i;
+        break;
+      }
+    }
+
+    // Check if room is full
+    if (socket.userData.seat == -1) {
+      //TODO full emit
+      console.log("room full");
+      socket.leave(room_name);
+      socket.join("waiting room");
+      socket.emit(
+        "refresh waiting room",
+        socket.userData,
+        roomsInfo.rooms.open,
+        user_count
+      );
+      socket.emit("alert", "Room is full");
+      return false;
+    }
+
+    // if there is no game object, give one
+    if (!roomObj.open[room_name].game)
+      roomObj.open[room_name].game = new Game();
+
+    //update user
+    socket.userData.cur_room = room_name;
+
+    //update room data
+    syncUserToRoom(socket, roomObj.open);
+
+    //refresh list
+    io.to("waiting room").emit(
+      "refresh waiting room",
+      socket.userData,
+      roomsInfo.rooms.open,
+      user_count
+    );
+
+    io.to(room_name).emit("refresh game room", roomsInfo.rooms.open[room_name]); // send info about room
+    io.to(room_name).emit("chat connection", socket.userData);
+
+    socket.emit("update sender", socket.userData);
   }
-
-  // if there is no game object, give one
-  if (!roomObj[room_name].game) roomObj[room_name].game = new Game();
-
-  //update user
-  socket.userData.cur_room = room_name;
-
-  //update room data
-  syncUserToRoom(socket, roomObj);
-
-  //refresh list
-  io.to("waiting room").emit(
-    "refresh waiting room",
-    socket.userData,
-    roomsInfo.rooms,
-    user_count
-  );
-
-  io.to(room_name).emit("refresh game room", roomsInfo.rooms[room_name]); // send info about room
-  io.to(room_name).emit("chat connection", socket.userData);
-
-  socket.emit("update sender", socket.userData);
 }
 
 function checkOrder(socket, roomData) {

@@ -1,5 +1,6 @@
 let connectNumber = 1;
 let user_count = 0;
+let roomsInfo = { roomNumber: 0, rooms: {open: {}, hide: {}} };
 
 class Player {
   constructor(nickname, sid, cur_room) {
@@ -64,7 +65,7 @@ class Game {
     }
 
     this.cur_order_idx = Math.floor(Math.random() * 8);
-    
+
     while (this.cur_order[this.cur_order_idx] < 1)
       this.cur_order_idx = Math.floor(Math.random() * 8); // cursor
 
@@ -92,7 +93,6 @@ class Game {
 
   nextPlayer(selected_card) {
     if (!this.cur_order) return;
-    console.log(this.cur_order_idx);
     this.cur_order_idx = (this.cur_order_idx + 1) % this.cur_order.length;
     while (this.cur_order[this.cur_order_idx] < 1)
       this.cur_order_idx = (this.cur_order_idx + 1) % this.cur_order.length;
@@ -170,4 +170,5 @@ module.exports = {
   Game,
   user_count,
   connectNumber,
+  roomsInfo
 };

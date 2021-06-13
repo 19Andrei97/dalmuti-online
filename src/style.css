@@ -1,17 +1,114 @@
-html, body {
-    height: 100vh;
+html,
+body {
+  height: 100vh;
 }
 
 body {
-    background-color: #cacaca !important;
+  background-color: var(--secondary2) !important;
 }
 
 .modal {
-    position: relative !important;
-    overflow: unset !important;
+  position: relative !important;
+  overflow: unset !important;
 }
 
-.game-room{
-    background-color: azure;
-    cursor: pointer;
+.game-room {
+  background-color: azure;
+  cursor: pointer;
+}
+
+.playerSlot {
+  width: 25%;
+  height: 160px;
+  background-color:var(--primary3);
+  color: white;
+  border-top: 5px solid var(--primary2);
+  border-bottom: 5px solid var(--primary2);
+}
+
+.playerSlot.last {
+  border: 5px solid var(--primary2);
+}
+
+.playerSlot.middle {
+  border-left: 5px solid var(--primary2);
+}
+
+.currentTurn {
+  background-color: #5f9ea0 !important;
+}
+
+.chatStyle {
+  overflow-y: auto;
+  height: calc(100% - 39.5px);
+  overflow-wrap: break-word;
+}
+
+.errorMSG{
+    z-index: 1000;
+    left: 50%;
+    top: 40%;
+    transform: translateX(-50%);
+    width: fit-content !important;
+    color: white;
+}
+
+.bg-success1{
+  background-color: var(--success1) !important;
+}
+.bg-success1:hover{
+  background-color: var(--success2) !important;
+}
+
+.bg-primary2{
+  background-color: var(--primary2) !important;
+}
+.bg-primary2:hover{
+  background-color: var(--primary3) !important;
+}
+
+.bg-primary1{
+  background-color: var(--primary1) !important;
+  color: white !important;
+}
+.bg-primary1:hover{
+  background-color: var(--primary2) !important;
+}
+
+.bg-secondary1{
+  background-color: var(--secondary1);
+}
+.bg-secondary1:hover{
+  background-color: #ecd4ad;
+}
+
+.bg-secondary2{
+  background-color: var(--secondary2);
+}
+
+.bg-alert1{
+  background-color: var(--alert1) !important;
+}
+.bg-alert1:hover{
+  background-color: var(--alert2) !important;
+}
+
+.bg-alert2{
+  background-color: var(--alert2) !important;
+}
+.bg-alert2:hover{
+  background-color: var(--alert3) !important;
+}
+
+:root {
+  --success1: #81B29A;
+  --success2: #aeebcd;
+  --alert1: #E07A5F;
+  --alert2: #df907a;
+  --alert3: #e9a491;
+  --primary1: #3D405B;
+  --primary2: #6d708a;
+  --primary3: #a2a6c5;
+  --secondary2: #F4F1DE;
+  --secondary1: #F2CC8F;
 }
