@@ -105,6 +105,9 @@ $(function () {
   $("#ready-btn").on("click", () => {
     if (!$("#ready-btn").hasClass("disabled")) {
       socket.emit("ready");
+
+      if($("#ready-btn").text()==="NOT READY") $("#ready-btn").text("READY");
+      else $("#ready-btn").text("NOT READY");
     }
   });
 
@@ -191,10 +194,13 @@ socket.on("refresh game room", (roomData) => {
     $("#ready-btn").addClass("disabled");
   }
 
-  // list shared info
+  // Set points
+  showPoints(roomData);
+
+  // List shared info
   reloadSlots(roomData);
 
-  // show cards
+  // Show cards
   reloadCards(socket.id, roomData);
 
   // show field
@@ -236,7 +242,7 @@ function setPlayable(roomData) {
     cur = roomData.game.cur_order_idx;
 
   for (let i = 0; i < 8; i++) {
-    $("#player" + i).removeClass("currentTurn");
+    $("#player" + i).parent().removeClass("currentTurn");
   }
 
   $("#play-btn").addClass("disabled");
@@ -246,9 +252,9 @@ function setPlayable(roomData) {
     if (cur == userData.seat && sid == socket.id) {
       alert_big("Your turn!");
       $("#play-btn").removeClass("disabled");
-      $("#player" + cur).addClass("currentTurn");
+      $("#player" + cur).parent().addClass("currentTurn");
     } else if (cur == userData.seat) {
-      $("#player" + cur).addClass("currentTurn");
+      $("#player" + cur).parent().addClass("currentTurn");
     }
   }
 }
@@ -266,26 +272,24 @@ function reloadSlots(roomData) {
   }
 
   for (const [sid, user] of Object.entries(roomData.sockets)) {
-    $("#player" + user.seat).append($("<p><b>" + user.nickname + "</b></p>"));
+    $("#player" + user.seat).append($("<div><b>" + user.nickname + "</b></div>"));
     $("#player" + user.seat).append(
-      $("<p>Cards: " + user.hand.length + "</p>")
+      $("<div>Cards: " + user.hand.length + "</div>")
     );
 
     if (roomData.game.state == game_state.WAITING) {
       if (user.ready) {
-        $("#player" + user.seat).append($("<p>READY</p>"));
-        $("#ready-btn").text("NOT READY");
+        $("#player" + user.seat).append($("<div>READY</div>"));
       } else {
-        $("#player" + user.seat).append($("<p>NOT READY</p>"));
-        $("#ready-btn").text("READY");
+        $("#player" + user.seat).append($("<div>NOT READY</div>"));
       }
     } else {
       if (user.ready) {
-        $("#player" + user.seat).append($("<p>PLAYING</p>"));
+        $("#player" + user.seat).append($("<div>PLAYING</div>"));
         if (user.hand.length == 0)
-          $("#player" + user.seat).append($("<p>WINNER</p>"));
+          $("#player" + user.seat).append($("<div>WINNER</div>"));
       } // not ready, not in game
-      else $("#player" + user.seat).append($("<p>SPECTATOR</p>"));
+      else $("#player" + user.seat).append($("<div>SPECTATOR</div>"));
     }
   }
 }
@@ -324,19 +328,20 @@ function reloadCards(sid, roomData) {
   $("#hand").empty();
 
   for (let i = 0; i < userData.hand.length; i++) {
+    let $carddiv;
     // BACKGROUND COLOR = card_colors[userData.hand[i] - 1]
     if (userData.hand[i] != -1) {
-      let $carddiv = $(
-        `<div class='cards text-center' style='width:70px;height:100px;background-color:${
+      $carddiv = $(
+        `<div class='cards text-center rounded' style='background-color:${
           card_colors[userData.hand[i] - 1]
         }'>${userData.hand[i]}</div>`
       );
 
       $carddiv.on("mouseenter", () => {
-        if (!$carddiv.hasClass("selected")) $carddiv.css("opacity", "60%");
+        if (!$carddiv.hasClass("selected")) $carddiv.addClass("cardSel");
       });
       $carddiv.on("mouseleave", () => {
-        if (!$carddiv.hasClass("selected")) $carddiv.css("opacity", "100%");
+        if (!$carddiv.hasClass("selected")) $carddiv.removeClass("cardSel");
       });
 
       $carddiv.on("click", () => {
@@ -395,7 +400,7 @@ function reloadField(roomData) {
 
       for (let i = 0; i < last_array.length; i++) {
         let $carddiv = $(
-          `<div class='cards text-center' style='width:70px;height:100px;background-color:${
+          `<div class='cards text-center' style='width:70px;margin:5px;height:100px;background-color:${
             card_colors[last_array[i] - 1]
           }'>${last_array[i]}</div>`
         );
@@ -403,6 +408,24 @@ function reloadField(roomData) {
         $("#field-section").append($carddiv);
       }
     }
+}
+
+// SHOW POINTS
+function showPoints(roomData) {
+  $('#statistics').empty() // Clear first
+  for (const players in roomData.sockets) {
+    let socket = roomData.sockets;
+
+    if (socket[players].hasOwnProperty('points') && $(`#${players}`).length === 0) {
+      let div = $(`<div id=${players} class="col w-100 pointsDiv">${socket[players].nickname}: ${socket[players].points}</div>`);
+      let spaceDiv = $('<div class="w-100"></div>')
+      $('#statistics').append(div, spaceDiv);
+    } else if ($(`#${players}`).length === 0) {
+      let div = $(`<div id=${players} class="col w-100 pointsDiv">${socket[players].nickname}: ${0}</div>`);
+      let spaceDiv = $('<div class="w-100"></div>')
+      $('#statistics').append(div, spaceDiv);
+    };
+  };
 }
 
 $(document).on("keydown", (e) => {

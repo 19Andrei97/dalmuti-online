@@ -320,6 +320,20 @@ io.on("connection", (socket) => {
                 socket.userData.seat,
                 room_name
               );
+
+              // POINTS COUNTER
+              let obj = roomsInfo.rooms.open[room_name].sockets
+              for (const player in roomsInfo.rooms.open[room_name].sockets) {
+                if (obj[player].hand.length === 0 && !obj[player].pointsReceived) {
+                  let points = 0
+                  roomsInfo.rooms.open[room_name].game.order.forEach((val)=> {
+                    if (val === true) points++
+                  })
+                  obj[player].points = points;
+                  obj[player].pointsReceived = true
+                }
+              }
+
               io.to(room_name).emit(
                 "chat announce",
                 socket.userData.nickname + " has won!!!",
