@@ -200,6 +200,88 @@ io.on("connection", (socket) => {
             cnt++;
           }
 
+          // SWAP CARDS
+          if(roomsInfo.rooms.open[room_name].leaderBoard) {
+            let leaderB = roomsInfo.rooms.open[room_name].leaderBoard
+            if(leaderB[0][3] === 'greaterDalmuti' && leaderB[leaderB.length-1][3] === 'greaterPeon') {
+              // SORT FIRST
+              roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.sort(function (a, b) {
+                return a - b;
+              });
+              roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-1][2]].hand.sort(function (a, b) {
+                return a - b;
+              });
+
+              // TAKE CARTS
+              let lastTwo = roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.splice(-2);
+              let isJolly = lastTwo.findIndex((val)=>{
+                return val === 13;
+              });
+              if(isJolly !== -1) {
+                roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.unshift(lastTwo.splice(isJolly,1));
+                roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.push(lastTwo[0]);
+                lastTwo = roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.splice(-2);
+              };
+              isJolly = lastTwo.findIndex((val)=>{
+                return val === 13;
+              });
+              if(isJolly !== -1) {
+                roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.unshift(lastTwo.splice(isJolly,1));
+                roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.push(lastTwo[0]);
+                lastTwo = roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.splice(-2);
+              };
+              let firstTwo = roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-1][2]].hand.splice(0, 2);
+              console.log(lastTwo, firstTwo);
+
+              // SWAP CARDS
+              roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-1][2]].hand.push(lastTwo[1])
+              roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-1][2]].hand.push(lastTwo[0])
+              roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.unshift(firstTwo[1])
+              roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].hand.unshift(firstTwo[0])
+
+              io.to(room_name).emit(
+                "chat announce",
+                "language.swap",
+                "green",
+                roomsInfo.rooms.open[room_name].sockets[leaderB[0][2]].nickname,
+                roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-1][2]].nickname
+              );
+            }
+            if(leaderB[1][3] === 'lesserDalmuti' && leaderB[leaderB.length-2][3] === 'lesserPeon') {
+              // SORT FIRST
+              roomsInfo.rooms.open[room_name].sockets[leaderB[1][3]].hand.sort(function (a, b) {
+                return a - b;
+              });
+              roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-1][2]].hand.sort(function (a, b) {
+                return a - b;
+              });
+
+              // TAKE CARTS
+              let lastOne = roomsInfo.rooms.open[room_name].sockets[leaderB[1][3]].hand.splice(-1);
+              let isJolly = lastOne.findIndex((val)=>{
+                return val === 13;
+              });
+              if(isJolly !== -1) {
+                roomsInfo.rooms.open[room_name].sockets[leaderB[1][3]].hand.unshift(lastOne.splice(isJolly,1));
+                lastOne = roomsInfo.rooms.open[room_name].sockets[leaderB[1][3]].hand.splice(-1);
+              };
+              let firstOne = roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-2][3]].hand.splice(0, 1);
+              console.log(lastOne, firstOne);
+
+              // SWAP CARDS
+              roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-2][3]].hand.push(lastOne[0])
+              roomsInfo.rooms.open[room_name].sockets[leaderB[1][3]].hand.unshift(firstOne[0])
+
+              io.to(room_name).emit(
+                "chat announce",
+                "language.swap",
+                "green",
+                roomsInfo.rooms.open[room_name].sockets[leaderB[1][3]].nickname,
+                roomsInfo.rooms.open[room_name].sockets[leaderB[leaderB.length-2][3]].nickname
+              );
+            }
+          }
+
           io.to("waiting room").emit(
             "refresh waiting room",
             socket.userData,
@@ -317,7 +399,8 @@ io.on("connection", (socket) => {
 
           io.to(room_name).emit(
             "refresh game room",
-            roomsInfo.rooms.open[room_name]
+            roomsInfo.rooms.open[room_name],
+            true
           );
         } else if (
           checkValidity(socket, roomsInfo.rooms.open[room_name], selected_card)

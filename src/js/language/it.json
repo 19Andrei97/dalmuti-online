@@ -19,7 +19,7 @@
     "connecting": "In connessione...",
     "ready": "PRONTO",
     "notReady": "NON PRONTO",
-    "winner": "VINCITORE",
+    "winner": "FINITO",
     "spect": "SPETTATORE",
     "pass": "PASSO",
     "play": "GIOCA",
@@ -42,5 +42,6 @@
     "cheat": "Questo non dovrebbe succedere",
     "waitTurn": "Attendi il tuo turno",
     "noRoom": "Nessuna stanza trovata",
-    "roomFull": "La stanza è piena"
+    "roomFull": "La stanza è piena",
+    "swap": " ha pagato le tasse a "
 }

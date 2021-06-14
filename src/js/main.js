@@ -186,7 +186,7 @@ $(function () {
   });
 
   //Enter Game Room
-  socket.on("refresh game room", (roomData) => {
+  socket.on("refresh game room", (roomData, passed) => {
     if (roomData.game.state == game_state.WAITING) {
       $("#ready-btn").removeClass("disabled");
     } else {
@@ -201,8 +201,7 @@ $(function () {
     // Show cards
     reloadCards(socket.id, roomData);
 
-    // show field
-    reloadField(roomData);
+    if(!passed) reloadField(roomData); // Reload field onliy not passed
 
     // enable first player
     setPlayable(roomData);
@@ -265,26 +264,31 @@ $(function () {
       leaderBoard.forEach((val, i) => {
         let div;
         if (val[3] === "greaterDalmuti") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
           $(`#${val[2]}`).parent().parent().children().eq(0).addClass('greaterDalmuti');
           div = $(
             `<div id=${val[2]} style="font-size: 1.5rem;" class="col w-100 pointsDiv"><i class="gg-crown"></i> ${val[1]}: ${val[0]}</div>`
           );
         } else if (val[3] === "lesserDalmuti") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
           $(`#${val[2]}`).parent().parent().children().eq(0).addClass('lesserDalmuti');
           div = $(
             `<div id=${val[2]} style="font-size: 1.2rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
         } else if (val[3] === "lesserPeon") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
           $(`#${val[2]}`).parent().parent().children().eq(0).addClass('lesserPeon');
           div = $(
             `<div id=${val[2]} style="font-size: 0.8rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
         } else if (val[3] === "greaterPeon") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
           $(`#${val[2]}`).parent().parent().children().eq(0).addClass('greaterPeon');
           div = $(
             `<div id=${val[2]} style="font-size: 0.8rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
         } else {
+          $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
           $(`#${val[2]}`).parent().parent().children().eq(0).addClass('merchant');
           div = $(
             `<div id=${val[2]} class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
@@ -317,9 +321,11 @@ $(function () {
   });
 
   // CHAT ANNUNCE FUNCTION
-  socket.on("chat announce", (msg, color, nickname) => {
+  socket.on("chat announce", (msg, color, nickname, nickname1) => {
     let $new_msg;
-    if (nickname) {
+    if (nickname && nickname1) {
+      $new_msg = $("<div>").text(nickname1 + " " + eval(msg) + " " + nickname);
+    } else if (nickname) {
       $new_msg = $("<div>").text(nickname + " " + eval(msg));
     } else {
       $new_msg = $("<div>").text(eval(msg));
@@ -470,8 +476,8 @@ $(function () {
     // Fade cards out
     $($(".selected").get().reverse()).each(function (fadeInDiv) {
       $(this)
-        .delay(fadeInDiv * 200)
-        .fadeOut(500);
+        .delay(fadeInDiv * 100)
+        .fadeOut(300);
     });
 
     $(".selected")
