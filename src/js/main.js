@@ -6,6 +6,46 @@ let game_state = {
 let socket = io();
 
 $(function () {
+  // SET LANGUAGE
+  let language;
+  (function getLanguage() {
+    localStorage.getItem("language") == null ? setLanguage("en") : false;
+    $.ajax({
+      url: "/js/language/" + localStorage.getItem("language") + ".json",
+      dataType: "json",
+      async: false,
+      dataType: "json",
+      success: function (lang) {
+        language = lang;
+      },
+    });
+  })();
+
+  // TRASLATIONS
+  $("#btnCreate").text(language.create);
+  $("#btnJoin").text(language.join);
+  $("#create").text(language.create);
+  $("#join").text(language.join);
+  $("#new-room-name-lang").text(language.newRoomName);
+  $("#titleNickModal").text(language.titleNickModal);
+  $("#joinRoomIdLang").text(language.newRoomName);
+  $("#hideLang").text(language.hide);
+  $("#new-room-create").text(language.btnCreate);
+  $("#set-nickname-lang").text(language.setNickname);
+  $("#set-nickname-ok").text(language.save);
+  $("#joinRoomId").text(language.newRoomName);
+  $("#joinRoom").text(language.btnJoin);
+  $("#info").text(language.info);
+  $("#howTo").text(language.howToPlay);
+  $("#chooseLang").text(language.chooseLang);
+  $("#play-btn").text(language.pass);
+  $("#ready-btn").text(language.ready);
+  $("#message-input").attr("placeholder", language.write);
+  $("#form-chatting").text(language.send);
+  $("#shareTitle").text(language.shareTit);
+  $("#roomIdShareLang").text(language.shareInvite);
+  $("#close").text(language.close);
+
   // CHECK nickname OR SET NEW
   let nickname = localStorage.getItem("localnickname");
   if (nickname) {
@@ -97,7 +137,7 @@ $(function () {
 
   // RECEIVE MSG FROM SERVER
   socket.on("chat message", (nickname, msg) => {
-    $("#chat-messages").append($("<div>").text(`${nickname}: ${msg}`));
+    $("#chat-messages").append($("<div>").html(`<b>${nickname}:</b> ${msg}`));
     $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
   });
 
@@ -106,8 +146,9 @@ $(function () {
     if (!$("#ready-btn").hasClass("disabled")) {
       socket.emit("ready");
 
-      if($("#ready-btn").text()==="NOT READY") $("#ready-btn").text("READY");
-      else $("#ready-btn").text("NOT READY");
+      if ($("#ready-btn").text() === language.notReady)
+        $("#ready-btn").text(language.ready);
+      else $("#ready-btn").text(language.notReady);
     }
   });
 
@@ -118,319 +159,421 @@ $(function () {
       socket.emit("play", selected_card);
     }
   });
-});
 
-// Redirect to Room URL
-socket.on("connectUrl", (roomId) => {
-  window.location.replace(`/room/${roomId}`);
-});
+  // UPDATE WAITING ROOMS LIST IN MAIN
+  socket.on("refresh waiting room", (user, rooms, user_count) => {
+    let roomCount = 0;
+    $("#room-list").empty(); // Clear before adding
 
-//!	Personal Update
+    for (const [key, room] of Object.entries(rooms)) {
+      appendGameRoom(key, Object.keys(room.sockets).length, room.game.state);
+      roomCount++;
+    }
 
-// UPDATE TITLE
-socket.on("update sender", (user) => {
-  $(".nickname").html(`<div>${user.nickname}</div>`);
-  $("#room-title").text(`Room name: ${user.cur_room}`);
-});
-
-// ALERT FROM SERVER
-socket.on("alert", (msg) => {
-  $("#play-btn").removeClass("disabled");
-  alert_big(msg);
-});
-
-// FADE IN ALERT
-function alert_big(msg) {
-  $("#error-msg-bg").fadeIn();
-  $("#error-msg").text(msg);
-  setTimeout(() => {
-    $("#error-msg-bg").fadeOut();
-  }, 3000);
-}
-
-//! Public(Shared) Update
-
-// UPDATE WAITING ROOMS LIST IN MAIN
-socket.on("refresh waiting room", (user, rooms, user_count) => {
-  let roomCount = 0;
-  $("#room-list").empty(); // Clear before adding
-
-  for (const [key, room] of Object.entries(rooms)) {
-    appendGameRoom(key, Object.keys(room.sockets).length, room.game.state);
-    roomCount++;
-  }
-
-  $("#title").html(
-    `The Great Dalmuti <br><strong>${roomCount} rooms | ${user_count} users online</strong>`
-  );
-});
-
-// SHOW GAMEROOM ON MAIN
-function appendGameRoom(name, length, state) {
-  let str = "";
-  if (state == game_state.WAITING) str = "Waiting";
-  else if (state == game_state.PLAYING) str = "Playing";
-
-  let $newRoom = $(
-    `<div class='p-4 w-100 mt-2 game-room rounded bg-secondary1'><strong>Room name:</strong> ${name} <strong>Players:</strong> ${length} / 8 <strong>- ${str}</strong></div>`
-  );
-
-  // join room
-  $newRoom.on("click", () => {
-    showLoadingText();
-    socket.emit("join game room", name);
-    $("#chat-messages").empty();
+    $("#title").html(
+      `${language.title} <br><strong>${roomCount} ${language.room} | ${user_count} ${language.usersOnline}</strong>`
+    );
   });
 
-  $("#room-list").append($newRoom);
-}
+  // UPDATE TITLE
+  socket.on("update sender", (user) => {
+    $(".nickname").html(`<div>${user.nickname}</div>`);
+    $("#room-title")
+      .text(`${language.roomTitle} ${user.cur_room}`)
+      .parent()
+      .attr("id", `${user.cur_room}`);
+    $("#roomIdShare").val(user.cur_room);
+  });
 
-//Enter Game Room
-socket.on("refresh game room", (roomData) => {
-  if (roomData.game.state == game_state.WAITING) {
-    $("#ready-btn").removeClass("disabled");
-  } else {
-    // start
-    $("#ready-btn").addClass("disabled");
-  }
-
-  // Set points
-  showPoints(roomData);
-
-  // List shared info
-  reloadSlots(roomData);
-
-  // Show cards
-  reloadCards(socket.id, roomData);
-
-  // show field
-  reloadField(roomData);
-
-  // enable first player
-  setPlayable(roomData);
-});
-
-// CONNECT AND DISCCONECT CHAT MSG
-socket.on("chat connection", (user) => {
-  //connected to chat
-  if (user.seat > -1)
-    $("#chat-messages").append(
-      $("<div>")
-        .text(user.nickname + " connected")
-        .addClass("font-weight-bold")
-    );
-  else
-    $("#chat-messages").append(
-      $("<div>")
-        .text(user.nickname + " disconnected")
-        .addClass("font-weight-bold")
-    );
-});
-
-// CHAT ANNUNCE FUNCTION
-socket.on("chat announce", (msg, color) => {
-  let $new_msg = $("<div>").text(msg);
-  $new_msg.css("color", color);
-  $new_msg.addClass("font-weight-bold");
-  $("#chat-messages").append($new_msg);
-});
-
-// CHECK TURN
-function setPlayable(roomData) {
-  let cur = -1;
-  if (roomData.game.state == game_state.PLAYING)
-    cur = roomData.game.cur_order_idx;
-
-  for (let i = 0; i < 8; i++) {
-    $("#player" + i).parent().removeClass("currentTurn");
-  }
-
-  $("#play-btn").addClass("disabled");
-
-  for (const [sid, userData] of Object.entries(roomData.sockets)) {
-    // IF IS USER ABILITATE TO PLAY CARD OR JUST SET TURN UI
-    if (cur == userData.seat && sid == socket.id) {
-      alert_big("Your turn!");
-      $("#play-btn").removeClass("disabled");
-      $("#player" + cur).parent().addClass("currentTurn");
-    } else if (cur == userData.seat) {
-      $("#player" + cur).parent().addClass("currentTurn");
-    }
-  }
-}
-
-// SHOW LOADING ANIMATION
-function showLoadingText() {
-  $("#title").text("Connecting...Please Wait");
-  $("#room-list").empty();
-}
-
-function reloadSlots(roomData) {
-  let cur = roomData.game.cur_order_idx;
-  for (let i = 0; i < 8; i++) {
-    $("#player" + i).empty();
-  }
-
-  for (const [sid, user] of Object.entries(roomData.sockets)) {
-    $("#player" + user.seat).append($("<div><b>" + user.nickname + "</b></div>"));
-    $("#player" + user.seat).append(
-      $("<div>Cards: " + user.hand.length + "</div>")
-    );
-
+  //Enter Game Room
+  socket.on("refresh game room", (roomData) => {
     if (roomData.game.state == game_state.WAITING) {
-      if (user.ready) {
-        $("#player" + user.seat).append($("<div>READY</div>"));
-      } else {
-        $("#player" + user.seat).append($("<div>NOT READY</div>"));
-      }
+      $("#ready-btn").removeClass("disabled");
     } else {
-      if (user.ready) {
-        $("#player" + user.seat).append($("<div>PLAYING</div>"));
-        if (user.hand.length == 0)
-          $("#player" + user.seat).append($("<div>WINNER</div>"));
-      } // not ready, not in game
-      else $("#player" + user.seat).append($("<div>SPECTATOR</div>"));
+      // start
+      $("#ready-btn").addClass("disabled");
+      $("#ready-btn").text(language.ready);
+    }
+
+    // List shared info
+    reloadSlots(roomData);
+
+    // Show cards
+    reloadCards(socket.id, roomData);
+
+    // show field
+    reloadField(roomData);
+
+    // enable first player
+    setPlayable(roomData);
+
+    // Show Points
+    showPoints(roomData.leaderBoard);
+  });
+
+  // Redirect to Room URL
+  socket.on("connectUrl", (roomId) => {
+    window.location.href = roomId;
+  });
+
+  //!	Personal Update
+
+  // ALERT FROM SERVER
+  socket.on("alert", (msg) => {
+    $("#play-btn").removeClass("disabled");
+
+    alert_big(eval(msg));
+  });
+
+  // FADE IN ALERT
+  function alert_big(msg) {
+    $("#error-msg-bg").fadeIn();
+    $("#error-msg").text(msg);
+    setTimeout(() => {
+      $("#error-msg-bg").fadeOut();
+    }, 3000);
+  }
+
+  //! Public(Shared) Update
+
+  // SHOW GAMEROOM ON MAIN
+  function appendGameRoom(name, length, state) {
+    let str = "";
+    if (state == game_state.WAITING) str = language.wait;
+    else if (state == game_state.PLAYING) str = language.playing;
+
+    let $newRoom = $(
+      `<div class='p-4 w-100 mt-2 game-room rounded bg-secondary1'><strong>${language.roomTitle}</strong> ${name} <strong>${language.players}</strong> ${length} / 8 <strong>- ${str}</strong></div>`
+    );
+
+    // join room
+    $newRoom.on("click", () => {
+      showLoadingText();
+      socket.emit("join game room", name);
+      $("#chat-messages").empty();
+    });
+
+    $("#room-list").append($newRoom);
+  }
+
+  // SHOW POINTS
+  function showPoints(leaderBoard) {
+    $("#statistics").empty(); // Clear first
+    // APPEND PLAYERS
+    console.log(leaderBoard);
+    try {
+      leaderBoard.forEach((val, i) => {
+        let div;
+        if (val[3] === "greaterDalmuti") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('greaterDalmuti');
+          div = $(
+            `<div id=${val[2]} style="font-size: 1.5rem;" class="col w-100 pointsDiv"><i class="gg-crown"></i> ${val[1]}: ${val[0]}</div>`
+          );
+        } else if (val[3] === "lesserDalmuti") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('lesserDalmuti');
+          div = $(
+            `<div id=${val[2]} style="font-size: 1.2rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
+          );
+        } else if (val[3] === "lesserPeon") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('lesserPeon');
+          div = $(
+            `<div id=${val[2]} style="font-size: 0.8rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
+          );
+        } else if (val[3] === "greaterPeon") {
+          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('greaterPeon');
+          div = $(
+            `<div id=${val[2]} style="font-size: 0.8rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
+          );
+        } else {
+          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('merchant');
+          div = $(
+            `<div id=${val[2]} class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
+          );
+        }
+        let spaceDiv = $('<div class="w-100"></div>');
+        $("#statistics").append(div, spaceDiv);
+      });
+    } catch (error) {
+      console.log(error);
     }
   }
-}
 
-//! CARDS COLORS
-var card_colors = [
-  "#a500df",
-  "#b6b6b6",
-  "#d49602",
-  "#fda4e3",
-  "#f7f935",
-  "#11a0bf",
-  "#31bf11",
-  "#00f6d7",
-  "#f60000",
-  "#1400ee",
-  "#875432",
-  "#545252",
-  "#7d4e9f",
-];
-var selected_card = {};
-
-function reloadCards(sid, roomData) {
-  selected_card = {};
-  $("#play-btn").text("PASS").addClass("bg-alert1").removeClass("btn-success");
-
-  // card -1
-  // its roomData not user
-  let userData = roomData.sockets[sid];
-
-  userData.hand.sort(function (a, b) {
-    return a - b;
+  // CONNECT AND DISCCONECT CHAT MSG
+  socket.on("chat connection", (user) => {
+    //connected to chat
+    if (user.seat > -1)
+      $("#chat-messages").append(
+        $("<div>")
+          .text(user.nickname + language.connected)
+          .addClass("font-weight-bold")
+      );
+    else
+      $("#chat-messages").append(
+        $("<div>")
+          .text(user.nickname + language.disconnected)
+          .addClass("font-weight-bold")
+      );
+    $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
   });
-  let actual_card_count = 1;
 
-  $("#hand").empty();
+  // CHAT ANNUNCE FUNCTION
+  socket.on("chat announce", (msg, color, nickname) => {
+    let $new_msg;
+    if (nickname) {
+      $new_msg = $("<div>").text(nickname + " " + eval(msg));
+    } else {
+      $new_msg = $("<div>").text(eval(msg));
+    }
+    $new_msg.css("color", color);
+    $new_msg.addClass("font-weight-bold");
+    $("#chat-messages").append($new_msg);
+    $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+  });
 
-  for (let i = 0; i < userData.hand.length; i++) {
-    let $carddiv;
-    // BACKGROUND COLOR = card_colors[userData.hand[i] - 1]
-    if (userData.hand[i] != -1) {
-      $carddiv = $(
-        `<div class='cards text-center rounded' style='background-color:${
-          card_colors[userData.hand[i] - 1]
-        }'>${userData.hand[i]}</div>`
+  // CHECK TURN
+  function setPlayable(roomData) {
+    let cur = -1;
+    if (roomData.game.state == game_state.PLAYING)
+      cur = roomData.game.cur_order_idx;
+
+    for (let i = 0; i < 8; i++) {
+      $("#player" + i)
+        .parent()
+        .removeClass("currentTurn");
+    }
+
+    $("#play-btn").addClass("disabled");
+
+    for (const [sid, userData] of Object.entries(roomData.sockets)) {
+      // IF IS USER ABILITATE TO PLAY CARD OR JUST SET TURN UI
+      if (cur == userData.seat && sid == socket.id) {
+        alert_big(language.yourTurn);
+        $("#play-btn").removeClass("disabled");
+        $("#player" + cur)
+          .parent()
+          .addClass("currentTurn");
+      } else if (cur == userData.seat) {
+        $("#player" + cur)
+          .parent()
+          .addClass("currentTurn");
+      }
+    }
+  }
+
+  // SHOW LOADING ANIMATION
+  function showLoadingText() {
+    $("#title").text(language.connecting);
+    $("#room-list").empty();
+  }
+
+  // RELOAD PLAYERS SLOTS
+  function reloadSlots(roomData) {
+    for (let i = 0; i < 8; i++) {
+      $("#player" + i).parent().removeClass('top')
+      $("#player" + i).empty();
+    }
+
+    for (let i = Object.keys(roomData.sockets).length; i < 8; i++) {
+      $("#player" + i).parent().addClass('top')
+      $("#player" + i).append(
+        '<i type="button" data-toggle="modal" data-target="#shareRoom" class="material-icons" style="font-size:36px">person_add</i>'
+      );
+    }
+
+    for (const [sid, user] of Object.entries(roomData.sockets)) {
+      $("#player" + user.seat).append(
+        $("<div id=" + sid + "><b>" + user.nickname + "</b></div>"),
+        $(
+          "<div style='font-size: medium;'>" +
+            language.cards +
+            " " +
+            user.hand.length +
+            "</div>"
+        )
       );
 
-      $carddiv.on("mouseenter", () => {
-        if (!$carddiv.hasClass("selected")) $carddiv.addClass("cardSel");
-      });
-      $carddiv.on("mouseleave", () => {
-        if (!$carddiv.hasClass("selected")) $carddiv.removeClass("cardSel");
-      });
-
-      $carddiv.on("click", () => {
-        if (!selected_card[userData.hand[i]])
-          selected_card[userData.hand[i]] = 0;
-
-        if ($carddiv.hasClass("selected")) {
-          // unselect
-          selected_card[userData.hand[i]]--;
-          if (selected_card[userData.hand[i]] == 0)
-            delete selected_card[userData.hand[i]];
-
-          $carddiv.removeClass("selected");
+      if (roomData.game.state == game_state.WAITING) {
+        if (user.ready) {
+          $("#player" + user.seat).append(
+            $(
+              "<div style='font-size: medium;color:var(--success1);'>" +
+                language.ready +
+                "</div>"
+            )
+          );
         } else {
-          //select
-          selected_card[userData.hand[i]]++;
-          $carddiv.addClass("selected");
+          $("#player" + user.seat).append(
+            $(
+              "<div style='font-size: medium;color:var(--alert1);'>" +
+                language.notReady +
+                "</div>"
+            )
+          );
         }
-
-        // play/pass
-        if (Object.keys(selected_card).length == 0) {
-          $("#play-btn")
-            .text("PASS")
-            .addClass("bg-alert1")
-            .removeClass("bg-success1");
-        } else {
-          $("#play-btn")
-            .text("PLAY")
-            .removeClass("bg-alert1")
-            .addClass("bg-success1");
-        }
-      });
-
-      $("#hand").append($carddiv);
-      actual_card_count++;
+      } else {
+        if (user.ready) {
+          if (user.hand.length == 0)
+            $("#player" + user.seat).append(
+              $(
+                "<div style='font-size: large;color:var(--success1);'>" +
+                  language.winner +
+                  "</div>"
+              )
+            );
+        } // not ready, not in game
+        else
+          $("#player" + user.seat).append(
+            $(
+              "<div style='font-size: medium;color:var(--primary1);'>" +
+                language.spect +
+                "</div>"
+            )
+          );
+      }
     }
   }
-}
 
-function reloadField(roomData) {
-  $("#field-section").empty();
+  //! CARDS COLORS
+  var card_colors = [
+    "#a500df",
+    "#b6b6b6",
+    "#d49602",
+    "#fda4e3",
+    "#f7f935",
+    "#11a0bf",
+    "#31bf11",
+    "#00f6d7",
+    "#f60000",
+    "#1400ee",
+    "#875432",
+    "#545252",
+    "#7d4e9f",
+  ];
+  var selected_card = {};
 
-  if (roomData.game.state == game_state.PLAYING)
-    if (roomData.game.last) {
-      // to array
-      let last_hand = roomData.game.last;
-      delete last_hand.num;
-      delete last_hand.count;
-      let last_array = [];
-      for (const [card, count] of Object.entries(last_hand)) {
-        let m = count;
-        while (m-- > 0) last_array.push(card);
+  function reloadCards(sid, roomData) {
+    selected_card = {};
+    $("#play-btn")
+      .text(language.pass)
+      .addClass("bg-alert1")
+      .removeClass("btn-success");
+
+    // card -1
+    // its roomData not user
+    let userData = roomData.sockets[sid];
+
+    userData.hand.sort(function (a, b) {
+      return a - b;
+    });
+    let actual_card_count = 1;
+
+    // Fade cards out
+    $($(".selected").get().reverse()).each(function (fadeInDiv) {
+      $(this)
+        .delay(fadeInDiv * 200)
+        .fadeOut(500);
+    });
+
+    $(".selected")
+      .promise()
+      .done(function () {
+        $("#hand").empty();
+
+        for (let i = 0; i < userData.hand.length; i++) {
+          let $carddiv;
+          // BACKGROUND COLOR = card_colors[userData.hand[i] - 1]
+          if (userData.hand[i] != -1) {
+            $carddiv = $(
+              `<div class='cards text-center rounded' style='background-color:${
+                card_colors[userData.hand[i] - 1]
+              }'>${userData.hand[i]}</div>`
+            );
+
+            $carddiv.on("mouseenter", () => {
+              if (!$carddiv.hasClass("selected")) $carddiv.addClass("cardSel");
+            });
+            $carddiv.on("mouseleave", () => {
+              if (!$carddiv.hasClass("selected"))
+                $carddiv.removeClass("cardSel");
+            });
+
+            $carddiv.on("click", () => {
+              if (!selected_card[userData.hand[i]])
+                selected_card[userData.hand[i]] = 0;
+
+              if ($carddiv.hasClass("selected")) {
+                // unselect
+                selected_card[userData.hand[i]]--;
+                if (selected_card[userData.hand[i]] == 0)
+                  delete selected_card[userData.hand[i]];
+
+                $carddiv.removeClass("selected");
+              } else {
+                //select
+                selected_card[userData.hand[i]]++;
+                $carddiv.addClass("selected");
+              }
+
+              // play/pass
+              if (Object.keys(selected_card).length == 0) {
+                $("#play-btn")
+                  .text(language.pass)
+                  .addClass("bg-alert1")
+                  .removeClass("bg-success1");
+              } else {
+                $("#play-btn")
+                  .text(language.play)
+                  .removeClass("bg-alert1")
+                  .addClass("bg-success1");
+              }
+            });
+
+            $("#hand").append($carddiv);
+            actual_card_count++;
+          }
+        }
+      });
+  }
+
+  function reloadField(roomData) {
+    $("#field-section").empty();
+
+    if (roomData.game.state == game_state.PLAYING)
+      if (roomData.game.last) {
+        // to array
+        let last_hand = roomData.game.last;
+        delete last_hand.num;
+        delete last_hand.count;
+        let last_array = [];
+        for (const [card, count] of Object.entries(last_hand)) {
+          let m = count;
+          while (m-- > 0) last_array.push(card);
+        }
+
+        //console.log(last_array)
+
+        for (let i = 0; i < last_array.length; i++) {
+          let $carddiv = $(
+            `<div class='cards text-center fieldCards' style='display:none;width:70px;margin:5px;height:100px;background-color:${
+              card_colors[last_array[i] - 1]
+            }'>${last_array[i]}</div>`
+          );
+
+          $("#field-section").append($carddiv);
+        }
+
+        $($(".fieldCards").get().reverse()).each(function (fadeInDiv) {
+          $(this)
+            .delay(fadeInDiv * 200)
+            .fadeIn(500);
+        });
       }
+  }
 
-      //console.log(last_array)
-
-      for (let i = 0; i < last_array.length; i++) {
-        let $carddiv = $(
-          `<div class='cards text-center' style='width:70px;margin:5px;height:100px;background-color:${
-            card_colors[last_array[i] - 1]
-          }'>${last_array[i]}</div>`
-        );
-
-        $("#field-section").append($carddiv);
-      }
-    }
-}
-
-// SHOW POINTS
-function showPoints(roomData) {
-  $('#statistics').empty() // Clear first
-  for (const players in roomData.sockets) {
-    let socket = roomData.sockets;
-
-    if (socket[players].hasOwnProperty('points') && $(`#${players}`).length === 0) {
-      let div = $(`<div id=${players} class="col w-100 pointsDiv">${socket[players].nickname}: ${socket[players].points}</div>`);
-      let spaceDiv = $('<div class="w-100"></div>')
-      $('#statistics').append(div, spaceDiv);
-    } else if ($(`#${players}`).length === 0) {
-      let div = $(`<div id=${players} class="col w-100 pointsDiv">${socket[players].nickname}: ${0}</div>`);
-      let spaceDiv = $('<div class="w-100"></div>')
-      $('#statistics').append(div, spaceDiv);
-    };
-  };
-}
-
-$(document).on("keydown", (e) => {
-  if (e.keyCode === 13 && $("#id02").css("display") !== "none") {
-    e.preventDefault();
-    $("set-nickname-ok").click();
-  } else if (e.keyCode === 13) e.preventDefault();
+  $(document).on("keydown", (e) => {
+    if (e.keyCode === 13 && $("#id02").css("display") !== "none") {
+      e.preventDefault();
+      $("#set-nickname-ok").click();
+    } else if (e.keyCode === 13) e.preventDefault();
+  });
 });

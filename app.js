@@ -27,9 +27,9 @@ app.get(`/room/:roomName`, cors(), (req, res, next) => {
   if (
     roomsInfo.rooms.open[req.params.roomName] ||
     roomsInfo.rooms.hide[req.params.roomName]
-  )
+  ) {
     res.sendFile(__dirname + "/src/room.html");
-  else next();
+  } else next();
 });
 
 // catch 404 and forward to error handler
@@ -64,7 +64,7 @@ io.on("connection", (socket) => {
     roomsInfo.rooms.open,
     user_count
   );
- 
+
   console.log(
     "\x1b[36mNEW:\x1b[0m",
     socket.userData.nickname + " joined main room"
@@ -102,24 +102,40 @@ io.on("connection", (socket) => {
     roomsInfo.roomNumber++;
     let idRoom = `${roomsInfo.roomNumber}-${room_name}`;
     joinRoom(socket, roomsInfo.rooms, idRoom, hide); // Use helper to create and join room
-    socket.emit("connectUrl", idRoom);
+    socket.emit("connectUrl", `/room/${idRoom}`);
   });
 
   // JOIN ROOM
-  socket.on("join game room", (room_name) => {
-    joinRoom(socket, roomsInfo.rooms, room_name);
-    socket.emit("connectUrl", room_name);
+  socket.on("join game room", (roomId) => {
+    if (
+      roomsInfo.rooms.open.hasOwnProperty(roomId) ||
+      roomsInfo.rooms.hide.hasOwnProperty(roomId)
+    ) {
+      joinRoom(socket, roomsInfo.rooms, roomId);
+      socket.emit("connectUrl", `/room/${roomId}`);
+    } else {
+      socket.emit("alert", "language.noRoom");
+      io.to("waiting room").emit(
+        "refresh waiting room",
+        socket.userData,
+        roomsInfo.rooms.open,
+        user_count
+      );
+      return;
+    }
   });
 
   // SHOW MESSAGE
   socket.on("chat message", (msg) => {
-    io.to(socket.userData.cur_room).emit(
-      "chat message",
-      socket.userData.nickname,
-      msg
-    );
+    if (msg !== "") {
+      io.to(socket.userData.cur_room).emit(
+        "chat message",
+        socket.userData.nickname,
+        msg
+      );
+    }
   });
-
+  
   // CHECK USER READY
   socket.on("ready", () => {
     let room_name = socket.userData.cur_room;
@@ -151,6 +167,7 @@ io.on("connection", (socket) => {
           "refresh game room",
           roomsInfo.rooms.open[room_name]
         );
+        
 
         // CHECK TO START GAME
         // Shared data, so use roomData not userData
@@ -161,11 +178,7 @@ io.on("connection", (socket) => {
         ) {
           //start game
           console.log("\x1b[36mNEW:\x1b[0m", room_name + ": game started");
-          io.to(room_name).emit(
-            "chat announce",
-            "The game has started.",
-            "blue"
-          );
+          io.to(room_name).emit("chat announce", "language.started", "blue");
 
           // set order, shuffle, etc.
           roomsInfo.rooms.open[room_name].game.start(
@@ -182,6 +195,7 @@ io.on("connection", (socket) => {
           )) {
             for (let i = cnt * handlim; i < handlim * cnt + handlim; i++) {
               user.hand.push(roomsInfo.rooms.open[room_name].game.deck[i]); // userData and room user Data not in sync
+              user.pointsReceived = false; // Reset points condition
             }
             cnt++;
           }
@@ -226,6 +240,7 @@ io.on("connection", (socket) => {
           "refresh game room",
           roomsInfo.rooms.hide[room_name]
         );
+        
 
         // CHECK TO START GAME
         // Shared data, so use roomData not userData
@@ -236,11 +251,7 @@ io.on("connection", (socket) => {
         ) {
           //start game
           console.log("\x1b[36mNEW:\x1b[0m", room_name + ": game started");
-          io.to(room_name).emit(
-            "chat announce",
-            "The game has started.",
-            "blue"
-          );
+          io.to(room_name).emit("chat announce", "language.started", "blue");
 
           // set order, shuffle, etc.
           roomsInfo.rooms.hide[room_name].game.start(
@@ -257,6 +268,7 @@ io.on("connection", (socket) => {
           )) {
             for (let i = cnt * handlim; i < handlim * cnt + handlim; i++) {
               user.hand.push(roomsInfo.rooms.hide[room_name].game.deck[i]); // userData and room user Data not in sync
+              user.pointsReceived = false; // Reset points condition
             }
             cnt++;
           }
@@ -276,7 +288,7 @@ io.on("connection", (socket) => {
     if (roomsInfo.rooms.open.hasOwnProperty(room_name)) {
       // but first of all, is it playing?
       if (roomsInfo.rooms.open[room_name].game.state != game_state.PLAYING) {
-        socket.emit("alert", "This should not happen.");
+        socket.emit("alert", "language.cheat");
         return;
       }
 
@@ -289,13 +301,19 @@ io.on("connection", (socket) => {
 
         // check PASS
         if (Object.keys(selected_card).length == 0) {
-
           let tmp_idx = roomsInfo.rooms.open[room_name].game.cur_order_idx;
           roomsInfo.rooms.open[room_name].game.cur_order[tmp_idx] = 0; // pass
           // if this is last pass, erase last hand give prior to last player who played
           // also renew cur_order for next round
           // and update last hand. Last hand will be used to display cards on field
           roomsInfo.rooms.open[room_name].game.nextPlayer(selected_card);
+
+          io.to(room_name).emit(
+            "chat announce",
+            "language.passed",
+            "black",
+            socket.userData.nickname
+          );
 
           io.to(room_name).emit(
             "refresh game room",
@@ -322,30 +340,86 @@ io.on("connection", (socket) => {
               );
 
               // POINTS COUNTER
-              let obj = roomsInfo.rooms.open[room_name].sockets
-              for (const player in roomsInfo.rooms.open[room_name].sockets) {
-                if (obj[player].hand.length === 0 && !obj[player].pointsReceived) {
-                  let points = 0
-                  roomsInfo.rooms.open[room_name].game.order.forEach((val)=> {
-                    if (val === true) points++
-                  })
-                  obj[player].points = points;
-                  obj[player].pointsReceived = true
+              let obj = roomsInfo.rooms.open[room_name].sockets;
+              let leaderBoard = [];
+              for (const player in obj) {
+                if (
+                  obj[player].hand.length === 0 &&
+                  !obj[player].pointsReceived 
+                ) {
+                  if (!obj[player].points) {
+                    let points = 0;
+                    roomsInfo.rooms.open[room_name].game.order.forEach(
+                      (val) => {
+                        if (val === true) points++;
+                      }
+                    );
+                    obj[player].points = points;
+                    obj[player].pointsReceived = true;
+                    leaderBoard.push([
+                      obj[player].points,
+                      obj[player].nickname,
+                      player,
+                    ]);
+                  } else {
+                    let points = 0;
+                    roomsInfo.rooms.open[room_name].game.order.forEach(
+                      (val) => {
+                        if (val === true) points++;
+                      }
+                    );
+                    obj[player].points += points;
+                    obj[player].pointsReceived = true;
+                    leaderBoard.push([
+                      obj[player].points,
+                      obj[player].nickname,
+                      player,
+                    ]);
+                  }
+                } else if(obj[player].hand.length > 0 && !obj[player].pointsReceived && !obj[player].points) {
+                  leaderBoard.push([
+                    0,
+                    obj[player].nickname,
+                    player,
+                  ]);
+                } else {
+                  leaderBoard.push([
+                    obj[player].points,
+                    obj[player].nickname,
+                    player,
+                  ]);
                 }
               }
+              leaderBoard.sort((a, b) => b[0] - a[0]); // For descending sort
+
+              if(leaderBoard.length === 3) {
+                leaderBoard[0].push('greaterDalmuti');
+                leaderBoard[1].push('merchant');
+                leaderBoard[2].push('greaterPeon');
+              } else if (leaderBoard.length > 3 && leaderBoard.length < 8) {
+                leaderBoard.forEach((val, i)=>{
+                  if(i === 0) val.push('greaterDalmuti')
+                  else if (i === 1) val.push('lesserDalmuti')
+                  else if (leaderBoard.length - i === 1) val.push('lesserPeon')
+                  else if (leaderBoard.length - i === 0) val.push('greaterPeon')
+                  else val.push('merchant')
+                })
+              } else {
+                leaderBoard[0].push('greaterDalmuti');
+              }
+
+              roomsInfo.rooms.open[room_name].leaderBoard = leaderBoard;
+
 
               io.to(room_name).emit(
                 "chat announce",
-                socket.userData.nickname + " has won!!!",
-                "green"
+                "language.finished",
+                "green",
+                socket.userData.nickname
               );
 
               if (roomsInfo.rooms.open[room_name].game.isOneLeft()) {
-                io.to(room_name).emit(
-                  "chat announce",
-                  "The game has ended due to only one player remaining.",
-                  "red"
-                );
+                io.to(room_name).emit("chat announce", "language.ended", "red");
                 //end game
                 roomsInfo.rooms.open[room_name].game.end();
                 for (const [sid, userData] of Object.entries(
@@ -353,6 +427,7 @@ io.on("connection", (socket) => {
                 )) {
                   userData.reset();
                 }
+                
               }
             }
 
@@ -362,21 +437,23 @@ io.on("connection", (socket) => {
               "refresh game room",
               roomsInfo.rooms.open[room_name]
             );
+            
           } else {
             // nope
-            socket.emit("alert", "Please choose the right cards.");
+            socket.emit("alert", "language.wrongCard");
           }
         } else {
-          socket.emit("alert", "This should not happen.");
+          socket.emit("connectUrl", "/");
+          socket.emit("alert", "language.roomFull");
         }
       } // check order
       else {
-        socket.emit("alert", "Please wait for your turn.");
+        socket.emit("alert", "language.waitTurn");
       }
     } else if (roomsInfo.rooms.hide.hasOwnProperty(room_name)) {
       // but first of all, is it playing?
       if (roomsInfo.rooms.hide[room_name].game.state != game_state.PLAYING) {
-        socket.emit("alert", "This should not happen.");
+        socket.emit("alert", "language.cheat");
         return;
       }
 
@@ -395,6 +472,13 @@ io.on("connection", (socket) => {
           // also renew cur_order for next round
           // and update last hand. Last hand will be used to display cards on field
           roomsInfo.rooms.hide[room_name].game.nextPlayer(selected_card);
+
+          io.to(room_name).emit(
+            "chat announce",
+            `language.passed`,
+            "black",
+            socket.userData.nickname
+          );
 
           io.to(room_name).emit(
             "refresh game room",
@@ -419,25 +503,90 @@ io.on("connection", (socket) => {
                 socket.userData.seat,
                 room_name
               );
+
+              // POINTS COUNTER
+              let obj = roomsInfo.rooms.hide[room_name].sockets;
+              let leaderBoard = [];
+              for (const player in obj) {
+                if (
+                  obj[player].hand.length === 0 &&
+                  !obj[player].pointsReceived
+                ) {
+                  if (!obj[player].points) {
+                    let points = 0;
+                    roomsInfo.rooms.hide[room_name].game.order.forEach(
+                      (val) => {
+                        if (val === true) points++;
+                      }
+                    );
+                    obj[player].points = points;
+                    obj[player].pointsReceived = true;
+                    leaderBoard.push([
+                      obj[player].points,
+                      obj[player].nickname,
+                      player,
+                    ]);
+                  } else {
+                    let points = 0;
+                    roomsInfo.rooms.hide[room_name].game.order.forEach(
+                      (val) => {
+                        if (val === true) points++;
+                      }
+                    );
+                    obj[player].points += points;
+                    obj[player].pointsReceived = true;
+                    leaderBoard.push([
+                      obj[player].points,
+                      obj[player].nickname,
+                      player,
+                    ]);
+                  }
+                } else if(obj[player].hand.length > 0 && !obj[player].pointsReceived) {
+                  leaderBoard.push([
+                    0,
+                    obj[player].nickname,
+                    player,
+                  ]);
+                }
+              }
+
+              leaderBoard.sort((a, b) => b[0] - a[0]); // For descending sort
+
+              if(leaderBoard.length === 3) {
+                leaderBoard[0].push('greaterDalmuti');
+                leaderBoard[1].push('merchant');
+                leaderBoard[2].push('greaterPeon');
+              } else if (leaderBoard.length > 3 && leaderBoard.length < 8) {
+                leaderBoard.forEach((val, i)=>{
+                  if(i === 0) val.push('greaterDalmuti')
+                  else if (i === 1) val.push('lesserDalmuti')
+                  else if (leaderBoard.length - i === 1) val.push('lesserPeon')
+                  else if (leaderBoard.length - i === 0) val.push('greaterPeon')
+                  else val.push('merchant')
+                })
+              } else {
+                leaderBoard[0].push('greaterDalmuti');
+              }
+
+              roomsInfo.rooms.hide[room_name].leaderBoard = leaderBoard;
+
               io.to(room_name).emit(
                 "chat announce",
-                socket.userData.nickname + " has won!!!",
-                "green"
+                "language.finished",
+                "green",
+                socket.userData.nickname
               );
 
               if (roomsInfo.rooms.hide[room_name].game.isOneLeft()) {
-                io.to(room_name).emit(
-                  "chat announce",
-                  "The game has ended due to only one player remaining.",
-                  "red"
-                );
-                //end game
+                io.to(room_name).emit("chat announce", "language.ended", "red");
+                // End game
                 roomsInfo.rooms.hide[room_name].game.end();
                 for (const [sid, userData] of Object.entries(
                   roomsInfo.rooms.hide[room_name].sockets
                 )) {
                   userData.reset();
                 }
+                
               }
             }
 
@@ -447,16 +596,17 @@ io.on("connection", (socket) => {
               "refresh game room",
               roomsInfo.rooms.hide[room_name]
             );
+            
           } else {
             // nope
-            socket.emit("alert", "Please choose the right cards.");
+            socket.emit("alert", "language.wrongCard");
           }
         } else {
-          socket.emit("alert", "This should not happen.");
+          socket.emit("alert", "language.cheat");
         }
       } // check order
       else {
-        socket.emit("alert", "Please wait for your turn.");
+        socket.emit("alert", "language.waitTurn");
       }
     }
   });
@@ -530,11 +680,7 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
       roomsObj[room_name].game.updateOrder(socket.userData.seat, room_name);
 
       if (roomsObj[room_name].game.isOneLeft()) {
-        io.to(room_name).emit(
-          "chat announce",
-          "The game has ended due to only one player remaining.",
-          "red"
-        );
+        io.to(room_name).emit("chat announce", "language.ended", "red");
         //end game
         roomsObj[room_name].game.end();
         for (const [sid, userData] of Object.entries(
@@ -542,8 +688,6 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
         )) {
           userData.reset();
         }
-
-        delete roomsObj[room_name];
       }
 
       // pass or evaluate or refresh during game...? pass turn?
@@ -551,7 +695,6 @@ function updateRoomDisconnect(socket, room_name, roomsObj) {
         // pass turn
         roomsObj[room_name].game.nextPlayer({});
       }
-      // 아무튼 그래야 자기 턴인 애가 나갔을 때, 아닌애가 나갔을 때
       io.to(room_name).emit("refresh game room", roomsObj[room_name]);
     }
 
@@ -592,7 +735,7 @@ function joinRoom(socket, roomObj, room_name, hide) {
     // Check if room is full
     if (socket.userData.seat == -1) {
       //TODO full emit
-      console.log("room full");
+      console.log("Room " + room_name + " is full");
       socket.leave(room_name);
       socket.join("waiting room");
       socket.emit(
@@ -601,7 +744,8 @@ function joinRoom(socket, roomObj, room_name, hide) {
         roomsInfo.rooms.open,
         user_count
       );
-      socket.emit("alert", "Room is full");
+      socket.emit("connectUrl", "/");
+      socket.emit("alert", "language.roomFull");
       return false;
     }
 
@@ -644,7 +788,8 @@ function joinRoom(socket, roomObj, room_name, hide) {
       console.log("room full");
       socket.leave(room_name);
       socket.join("waiting room");
-      socket.emit("alert", "Room is full");
+      socket.emit("connectUrl", "/");
+      socket.emit("alert", "language.roomFull");
       return false;
     }
 
@@ -686,7 +831,9 @@ function joinRoom(socket, roomObj, room_name, hide) {
       console.log("room full");
       socket.leave(room_name);
       socket.join("waiting room");
-      socket.emit("alert", "Room is full");
+
+      socket.emit("connectUrl", "/");
+      socket.emit("alert", "language.roomFull");
       return false;
     }
 
@@ -734,7 +881,9 @@ function joinRoom(socket, roomObj, room_name, hide) {
         roomsInfo.rooms.open,
         user_count
       );
-      socket.emit("alert", "Room is full");
+
+      socket.emit("connectUrl", "/");
+      socket.emit("alert", "language.roomFull");
       return false;
     }
 

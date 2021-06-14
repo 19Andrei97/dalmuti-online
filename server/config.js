@@ -33,6 +33,7 @@ class Game {
     this.readyCount = 0;
     this.deck = this.prepareDeck();
     this.cur_order_idx = -1;
+    this.round = -1
   }
 
   updateOrder(omit_i) {
@@ -42,6 +43,7 @@ class Game {
 
   start(roomData) {
     this.state = game_state.PLAYING;
+    this.round++
 
     // order: order for the whole game
     // cur_order: currunt round order (in case of passes)
