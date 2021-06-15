@@ -42,6 +42,7 @@ $(function () {
   $("#ready-btn").text(language.ready);
   $("#message-input").attr("placeholder", language.write);
   $("#form-chatting").text(language.send);
+  $("#form-chatting-media").text(language.send);
   $("#shareTitle").text(language.shareTit);
   $("#roomIdShareLang").text(language.shareInvite);
   $("#close").text(language.close);
@@ -49,7 +50,7 @@ $(function () {
   // CHECK nickname OR SET NEW
   let nickname = localStorage.getItem("localnickname");
   if (nickname) {
-    $(".nickname").html(`<div>${nickname}</div>`);
+    $(".nickname").html(`<div class="nameMedia">${nickname}</div>`);
     socket.emit(
       "set new nickname",
       nickname,
@@ -68,6 +69,7 @@ $(function () {
 
     if (roomName !== "") {
       $("#chat-messages").empty(); //empty chat log
+      $("#chat-messages-media").empty(); //empty chat log
       showLoadingText();
       socket.emit("create game room", roomName, hide);
       $("#new-room-name").val("");
@@ -86,6 +88,7 @@ $(function () {
 
     if (roomName !== "") {
       $("#chat-messages").empty(); //empty chat log
+      $("#chat-messages-media").empty();
       showLoadingText();
       socket.emit("join game room", roomName);
       $("#joinRoomId").val("");
@@ -135,10 +138,32 @@ $(function () {
     return false;
   });
 
+  // CHAT HELPER
+  $("#form-chatting-media").click(() => {
+    if (!/<\/?[a-z][\s\S]*>/i.test($("#message-input-media").val())) {
+      socket.emit("chat message", $("#message-input-media").val());
+
+      $("#message-input-media").val("");
+      return false;
+    } else {
+      $("#message-input-media").val("Not here my friend");
+    }
+    return false;
+  });
+
   // RECEIVE MSG FROM SERVER
   socket.on("chat message", (nickname, msg) => {
-    $("#chat-messages").append($("<div>").html(`<b>${nickname}:</b> ${msg}`));
-    $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+    if (screen.width > 600) {
+      $("#chat-messages").append($("<div>").html(`<b>${nickname}:</b> ${msg}`));
+      $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+    } else {
+      $("#chat-messages-media").append(
+        $("<div>").html(`<b>${nickname}:</b> ${msg}`)
+      );
+      $("#chat-messages-media").scrollTop(
+        $("#chat-messages-media").prop("scrollHeight")
+      );
+    }
   });
 
   // button, must be checked on server side
@@ -249,6 +274,7 @@ $(function () {
       showLoadingText();
       socket.emit("join game room", name);
       $("#chat-messages").empty();
+      $("#chat-messages-media").empty();
     });
 
     $("#room-list").append($newRoom);
@@ -257,6 +283,7 @@ $(function () {
   // SHOW POINTS
   function showPoints(leaderBoard) {
     $("#statistics").empty(); // Clear first
+    $("#statistics-media").empty();
     // APPEND PLAYERS
     try {
       leaderBoard.forEach((val, i) => {
@@ -319,6 +346,7 @@ $(function () {
         }
         let spaceDiv = $('<div class="w-100"></div>');
         $("#statistics").append(div, spaceDiv);
+        $("#statistics-media").append(div, spaceDiv);
       });
     } catch (error) {
       // console.log(error);
@@ -328,19 +356,37 @@ $(function () {
   // CONNECT AND DISCCONECT CHAT MSG
   socket.on("chat connection", (user) => {
     //connected to chat
-    if (user.seat > -1)
-      $("#chat-messages").append(
-        $("<div>")
-          .text(user.nickname + language.connected)
-          .addClass("font-weight-bold")
+    if (screen.width > 600) {
+      if (user.seat > -1)
+        $("#chat-messages").append(
+          $("<div>")
+            .text(user.nickname + language.connected)
+            .addClass("font-weight-bold")
+        );
+      else
+        $("#chat-messages").append(
+          $("<div>")
+            .text(user.nickname + language.disconnected)
+            .addClass("font-weight-bold")
+        );
+      $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+    } else {
+      if (user.seat > -1)
+        $("#chat-messages-media").append(
+          $("<div>")
+            .text(user.nickname + language.connected)
+            .addClass("font-weight-bold")
+        );
+      else
+        $("#chat-messages-media").append(
+          $("<div>")
+            .text(user.nickname + language.disconnected)
+            .addClass("font-weight-bold")
+        );
+      $("#chat-messages-media").scrollTop(
+        $("#chat-messages-media").prop("scrollHeight")
       );
-    else
-      $("#chat-messages").append(
-        $("<div>")
-          .text(user.nickname + language.disconnected)
-          .addClass("font-weight-bold")
-      );
-    $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+    }
   });
 
   // CHAT ANNUNCE FUNCTION
@@ -355,8 +401,35 @@ $(function () {
     }
     $new_msg.css("color", color);
     $new_msg.addClass("font-weight-bold");
-    $("#chat-messages").append($new_msg);
-    $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+
+    if (screen.width > 600) {
+      $("#chat-messages").append($new_msg);
+      $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+    } else {
+      $("#chat-messages-media").append($new_msg);
+      $("#chat-messages-media").scrollTop(
+        $("#chat-messages-media").prop("scrollHeight")
+      );
+    }
+  });
+
+  // CHAT ANNUNCE TAXS
+  socket.on("chat announce taxs", (msg, color, paied, received) => {
+    let arrMess = eval(msg);
+    let $new_msg = $("<div>").html(
+      `${arrMess[0]} ${paied}<br>${arrMess[1]} ${received}`
+    );
+    $new_msg.css("color", color);
+    $new_msg.addClass("font-weight-bold");
+    if (screen.width > 600) {
+      $("#chat-messages").append($new_msg);
+      $("#chat-messages").scrollTop($("#chat-messages").prop("scrollHeight"));
+    } else {
+      $("#chat-messages-media").append($new_msg);
+      $("#chat-messages-media").scrollTop(
+        $("#chat-messages-media").prop("scrollHeight")
+      );
+    }
   });
 
   // CHECK TURN
@@ -404,55 +477,123 @@ $(function () {
       $("#player" + i).empty();
     }
 
-    for (const [sid, user] of Object.entries(roomData.sockets)) {
-      $("#player" + user.seat).append(
-        $("<div id=" + sid + "><b>" + user.nickname + "</b></div>"),
-        $(
-          "<div style='font-size: medium;'>" +
-            language.cards +
-            " " +
-            user.hand.length +
-            "</div>"
-        )
-      );
-
-      if (roomData.game.state == game_state.WAITING) {
-        if (user.ready) {
-          $("#player" + user.seat).append(
-            $(
-              "<div style='font-size: medium;color:var(--success1);'>" +
-                language.ready +
-                "</div>"
-            )
-          );
-        } else {
-          $("#player" + user.seat).append(
-            $(
-              "<div style='font-size: medium;color:var(--alert1);'>" +
-                language.notReady +
-                "</div>"
-            )
-          );
-        }
-      } else {
-        if (user.ready) {
-          if (user.hand.length == 0)
-            $("#player" + user.seat).append(
+    if (roomData.leaderBoard && roomData.game.state === game_state.WAITING) {
+      roomData.leaderBoard.forEach((val, i) => {
+        $("#player" + i).append(
+          $("<div id=" + val[2] + "><b>" + val[1] + "</b></div>"),
+          $(
+            "<div class='fontMediaSlots'>" +
+              language.cards +
+              " " +
+              roomData.sockets[val[2]].hand.length +
+              "</div>"
+          )
+        );
+        if (roomData.game.state == game_state.WAITING) {
+          if (roomData.sockets[val[2]].ready) {
+            $("#player" + i).append(
               $(
-                "<div style='font-size: large;color:var(--success1);'>" +
-                  language.winner +
+                "<div class='fontMediaSlots' style='color:var(--success1);'>" +
+                  language.ready +
                   "</div>"
               )
             );
-        } // not ready, not in game
-        else
-          $("#player" + user.seat).append(
-            $(
-              "<div style='font-size: medium;color:var(--primary1);'>" +
-                language.spect +
-                "</div>"
-            )
-          );
+          } else {
+            $("#player" + i).append(
+              $(
+                "<div class='fontMediaSlots' style='color:var(--alert1);'>" +
+                  language.notReady +
+                  "</div>"
+              )
+            );
+          }
+        } else {
+          if (roomData.sockets[val[2]].ready) {
+            if (roomData.sockets[val[2]].hand.length == 0)
+              $("#player" + i).append(
+                $(
+                  "<div class='fontMediaSlots' style='color:var(--success1);'>" +
+                    language.winner +
+                    "</div>"
+                )
+              );
+          } // not ready, not in game
+          else {
+            for (const [sid, user] of Object.entries(roomData.sockets)) {
+              if (roomData.leaderBoard.find((el) => el[2] === sid)) {
+                $("#player" + user.seat).append(
+                  $("<div id=" + sid + "><b>" + user.nickname + "</b></div>"),
+                  $(
+                    "<div class='fontMediaSlots'>" +
+                      language.cards +
+                      " " +
+                      user.hand.length +
+                      "</div>"
+                  )
+                );
+                $("#player" + user.seat).append(
+                  $(
+                    "<div class='fontMediaSlots' style='color:var(--primary1);'>" +
+                      language.spect +
+                      "</div>"
+                  )
+                );
+              }
+            }
+          }
+        }
+      });
+    } else {
+      for (const [sid, user] of Object.entries(roomData.sockets)) {
+        $("#player" + user.seat).append(
+          $("<div id=" + sid + "><b>" + user.nickname + "</b></div>"),
+          $(
+            "<div class='fontMediaSlots'>" +
+              language.cards +
+              " " +
+              user.hand.length +
+              "</div>"
+          )
+        );
+
+        if (roomData.game.state == game_state.WAITING) {
+          if (user.ready) {
+            $("#player" + user.seat).append(
+              $(
+                "<div class='fontMediaSlots' style='color:var(--success1);'>" +
+                  language.ready +
+                  "</div>"
+              )
+            );
+          } else {
+            $("#player" + user.seat).append(
+              $(
+                "<div class='fontMediaSlots' style='color:var(--alert1);'>" +
+                  language.notReady +
+                  "</div>"
+              )
+            );
+          }
+        } else {
+          if (user.ready) {
+            if (user.hand.length == 0)
+              $("#player" + user.seat).append(
+                $(
+                  "<div class='fontMediaSlots' style='color:var(--success1);'>" +
+                    language.winner +
+                    "</div>"
+                )
+              );
+          } // not ready, not in game
+          else
+            $("#player" + user.seat).append(
+              $(
+                "<div class='fontMediaSlots' style='color:var(--primary1);'>" +
+                  language.spect +
+                  "</div>"
+              )
+            );
+        }
       }
     }
 
@@ -522,7 +663,9 @@ $(function () {
           // BACKGROUND COLOR = card_colors[userData.hand[i] - 1]
           if (userData.hand[i] != -1) {
             $carddiv = $(
-              `<div class='cards text-center ${card_colors[userData.hand[i] - 1]}'></div>`
+              `<div class='cards text-center ${
+                card_colors[userData.hand[i] - 1]
+              }'></div>`
             );
 
             $carddiv.on("mouseenter", () => {
@@ -571,49 +714,57 @@ $(function () {
       });
   }
 
-  ///TODOOOO FIIIIIIIIIIIIIIIIIIIIIIIXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXS
   function reloadField(roomData, socketInfo) {
-    $("#field-section").children().each((i,val) => $(val).removeClass('active').fadeOut(300)).parent().empty()
-    // $("#field-section").promise().done(()=> $("#field-section").empty())
-    $("#whoPlayed").children().eq(0).fadeOut(300);
-    $("#whoPlayed").promise().done(()=> $("#whoPlayed").empty())
+    $("#whoPlayed").empty();
+    $("#field-section")
+      .children()
+      .each((i, val) => $(val).removeClass("active").fadeOut(300))
+      .promise()
+      .done((elem) => {
+        elem.parent().empty();
+        if (roomData.game.state == game_state.PLAYING)
+          if (roomData.game.last) {
+            $("#whoPlayed").text(`${socketInfo.nickname} ${language.placed}`);
 
-    if (roomData.game.state == game_state.PLAYING)
-      if (roomData.game.last) {
-        $("#whoPlayed").text(`${socketInfo.nickname} ${language.placed}`)
+            // to array
+            let last_hand = roomData.game.last;
+            delete last_hand.num;
+            delete last_hand.count;
+            let last_array = [];
+            for (const [card, count] of Object.entries(last_hand)) {
+              let m = count;
+              while (m-- > 0) last_array.push(card);
+            }
 
-        // to array
-        let last_hand = roomData.game.last;
-        delete last_hand.num;
-        delete last_hand.count;
-        let last_array = [];
-        for (const [card, count] of Object.entries(last_hand)) {
-          let m = count;
-          while (m-- > 0) last_array.push(card);
-        }
+            //console.log(last_array)
 
-        //console.log(last_array)
+            for (let i = 0; i < last_array.length; i++) {
+              let backCard = $("<div class='flip-card-front backCard'>");
+              let $carddiv = $(
+                `<div class='flip-card-back text-center fieldCards ${
+                  card_colors[last_array[i] - 1]
+                }'></div>`
+              );
+              let parentDiv = $(
+                "<div class='flip-card-inner fieldCards' style='display:none;margin:3px;'>"
+              );
+              parentDiv.append(backCard, $carddiv);
+              $("#field-section").append(parentDiv);
+            }
 
-        for (let i = 0; i < last_array.length; i++) {
-          let backCard= $("<div class='flip-card-front backCard'>")
-          let $carddiv = $(
-            `<div class='flip-card-back cards text-center fieldCards ${card_colors[last_array[i] - 1]}'></div>`
-          );
-          let parentDiv = $("<div class='flip-card-inner fieldCards' style='display:none;margin:3px;'>")
-          parentDiv.append(backCard, $carddiv)
-          $("#field-section").append(parentDiv);
-        }
+            $($(".fieldCards").get().reverse()).each(function (fadeInDiv) {
+              $(this)
+                .delay(fadeInDiv * 100)
+                .fadeIn(300);
+            });
 
-        $($(".fieldCards").get().reverse()).each(function (fadeInDiv) {
-          $(this)
-            .delay(fadeInDiv * 100)
-            .fadeIn(300);
-        });
-
-        $(".fieldCards").promise().done(()=> {
-          $(".flip-card .flip-card-inner").addClass('active')
-        })
-      }
+            $(".fieldCards")
+              .promise()
+              .done(() => {
+                $(".flip-card .flip-card-inner").addClass("active");
+              });
+          }
+      });
   }
 
   $(document).on("keydown", (e) => {
@@ -621,5 +772,10 @@ $(function () {
       e.preventDefault();
       $("#set-nickname-ok").click();
     } else if (e.keyCode === 13) e.preventDefault();
+  });
+
+  $("#chatMedia").click(function () {
+    $(".chatStatDivMedia").toggleClass("chatDiv");
+    $("#chatMedia").toggleClass("chatActive");
   });
 });

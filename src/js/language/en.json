@@ -44,5 +44,6 @@
     "noRoom": "No room found.",
     "roomFull": "Room is full",
     "swap": " paid his bills to ",
-    "placed": "played:"
+    "placed": "played:",
+    "taxs": ["Sent:", "Received:"]
 }

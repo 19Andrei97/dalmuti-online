@@ -1,6 +1,6 @@
 let connectNumber = 1;
 let user_count = 0;
-let roomsInfo = { roomNumber: 0, rooms: {open: {}, hide: {}} };
+let roomsInfo = { roomNumber: 0, rooms: { open: {}, hide: {} } };
 
 class Player {
   constructor(nickname, sid, cur_room) {
@@ -33,7 +33,7 @@ class Game {
     this.readyCount = 0;
     this.deck = this.prepareDeck();
     this.cur_order_idx = -1;
-    this.round = -1
+    this.round = -1;
   }
 
   updateOrder(omit_i) {
@@ -43,7 +43,7 @@ class Game {
 
   start(roomData) {
     this.state = game_state.PLAYING;
-    this.round++
+    this.round++;
 
     // order: order for the whole game
     // cur_order: currunt round order (in case of passes)
@@ -91,7 +91,7 @@ class Game {
     }
 
     delete this.last;
-    return true
+    return true;
   }
 
   nextPlayer(selected_card) {
@@ -119,9 +119,9 @@ class Game {
     }
 
     if (still_playing == 1) {
-      // only one
       return this.nextRound();
     }
+
   }
 
   isOneLeft() {
@@ -173,5 +173,5 @@ module.exports = {
   Game,
   user_count,
   connectNumber,
-  roomsInfo
+  roomsInfo,
 };

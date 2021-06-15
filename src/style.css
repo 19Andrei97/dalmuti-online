@@ -22,6 +22,10 @@ body {
   font-size: larger;
   font-weight: bold;
   z-index: -3;
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
 .players {
@@ -31,14 +35,6 @@ body {
 .top {
   z-index: 100 !important;
 }
-
-/* .playerSlot.last {
-  border: 5px solid var(--primary2);
-}
-
-.playerSlot.middle {
-  border-left: 5px solid var(--primary2);
-} */
 
 .currentTurn {
   background-color: #5f9ea0 !important;
@@ -142,11 +138,6 @@ a {
 
 .cardSel {
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-}
-
-.cards {
-  margin-left: -50px;
-  border-radius: 8px !important;
 }
 
 .material-icons {
@@ -264,8 +255,15 @@ a {
   position: absolute;
   right: 0;
   top: 0;
-  left: 50px;
+  filter: brightness(1.2);
   transform: rotateY(180deg);
+  border-radius: 8px !important;
+}
+
+.cards {
+  margin-left: -50px;
+  border-radius: 8px !important;
+  filter: brightness(1.2);
 }
 
 /* CARDS NAMES */
@@ -387,4 +385,138 @@ a {
   background-position-x: 75.4%;
   background-position-y: 100%;
   width: 102px !important;
+}
+
+.fontMediaSlots {
+  font-size: medium;
+}
+
+.float {
+  display: none;
+}
+
+.chatStatDiv {
+  height: 100%;
+}
+
+.chatDiv {
+  display: none;
+}
+
+.fieldMedia {
+  height: 25%;
+}
+
+.fieldCards {
+  margin-left: -30px !important;
+}
+
+@media only screen and (max-width: 1000px) and (min-width: 600px) {
+  .flip-card {
+    margin-left: 50px !important;
+    transform: scale(0.9) !important;
+  }
+
+  .fieldCards {
+    margin-left: -50px !important;
+  }
+}
+
+
+@media only screen and (max-width: 600px) {
+  .chatStatDiv {
+    display: none;
+  }
+  .flip-card {
+    margin-left: 50px !important;
+    transform: scale(0.7) !important;
+  }
+
+  .fieldCards {
+    margin-left: -50px !important;
+  }
+
+  .titleMedia {
+    font-size: small;
+  }
+
+  .nameMedia {
+    margin-top: 1vh;
+  }
+
+  .playerSlot {
+    background-color: var(--secondary1);
+    font-size: larger;
+    font-weight: bold;
+    z-index: -3;
+    padding: 0.2rem !important;
+    margin: 0px !important;
+  }
+
+  .fontMediaSlots {
+    font-size: small;
+  }
+
+  .players {
+    font-size: smaller;
+  }
+
+  .cards {
+    margin-left: -60px;
+    transform: scale(0.8);
+    margin-bottom: -20px;
+  }
+
+  .float {
+    display: block;
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    bottom: 20px;
+    right: 20px;
+    background-color: #0c9;
+    color: #fff;
+    border-radius: 50px;
+    text-align: center;
+    box-shadow: 2px 2px 3px #999;
+    z-index: 102;
+  }
+
+  .my-float {
+    margin-top: 22px;
+  }
+
+  .chatStatDivMedia {
+    z-index: 101;
+    display: block !important;
+    position: fixed !important;
+    height: 70vh !important;
+    border-radius: 10px;
+    background-color: var(--alert3);
+    top: 0px;
+    width: 100%;
+    padding: 20px !important;
+    margin-top: 15%;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  }
+
+  .chatDiv {
+    display: none !important;
+  }
+
+  .chatActive {
+    transform: scale(1.2);
+  }
+
+  #statistics {
+    padding-top: 0px !important;
+  }
+
+  .pointsDiv {
+    padding-top: 0px !important;
+    font-weight: bold;
+  }
+  .fieldMedia {
+    height: fit-content !important;
+  }
 }
