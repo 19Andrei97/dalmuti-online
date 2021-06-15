@@ -44,6 +44,7 @@
 
         <!-- Game and chat -->
         <div class="container-fluid" style="height:90vh">
+            
             <div class="row h-100">
                 <!-- Players slots -->
                 <div class="col-sm-9">
@@ -72,7 +73,10 @@
                     </div>
                     <!-- Field -->
                     <div class="row h-25 justify-content-center">
-                        <div id="field-section" class="justify-content-center align-content-center d-flex flex-wrap">
+                        <div id="whoPlayed" class="col w-100 pointsDiv text-center"></div>
+                        <div class="w-100"></div>
+                        <div id="field-section" style="perspective: 1000px;width: 102px !important;height: 160px !important;" 
+                        class="flip-card justify-content-center align-content-center d-flex">
                         </div>
                     </div>
                     <!-- Lower 4 players -->
@@ -106,7 +110,7 @@
                             style="width:100%; margin: 5px;">READY</button>
                     </div>
                     <div class="row h-25">
-                        <div id="hand" class="d-flex flex-row flex-wrap" style="margin-left: 40px;"></div>
+                        <div id="hand" class="d-flex flex-row flex-wrap" style="margin-left: 70px;"></div>
                     </div>
                 </div>
                 <!-- Chat & Statistics -->

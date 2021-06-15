@@ -91,6 +91,7 @@ class Game {
     }
 
     delete this.last;
+    return true
   }
 
   nextPlayer(selected_card) {
@@ -119,7 +120,7 @@ class Game {
 
     if (still_playing == 1) {
       // only one
-      this.nextRound();
+      return this.nextRound();
     }
   }
 

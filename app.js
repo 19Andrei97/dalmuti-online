@@ -388,7 +388,7 @@ io.on("connection", (socket) => {
           // if this is last pass, erase last hand give prior to last player who played
           // also renew cur_order for next round
           // and update last hand. Last hand will be used to display cards on field
-          roomsInfo.rooms.open[room_name].game.nextPlayer(selected_card);
+          let testLastPass = roomsInfo.rooms.open[room_name].game.nextPlayer(selected_card);
 
           io.to(room_name).emit(
             "chat announce",
@@ -400,7 +400,7 @@ io.on("connection", (socket) => {
           io.to(room_name).emit(
             "refresh game room",
             roomsInfo.rooms.open[room_name],
-            true
+            testLastPass
           );
         } else if (
           checkValidity(socket, roomsInfo.rooms.open[room_name], selected_card)
@@ -479,7 +479,7 @@ io.on("connection", (socket) => {
                 leaderBoard[0].push('greaterDalmuti');
                 leaderBoard[1].push('merchant');
                 leaderBoard[2].push('greaterPeon');
-              } else if (leaderBoard.length > 3 && leaderBoard.length < 8) {
+              } else if (leaderBoard.length > 3 && leaderBoard.length <= 8) {
                 leaderBoard.forEach((val, i)=>{
                   if(i === 0) val.push('greaterDalmuti')
                   else if (i === 1) val.push('lesserDalmuti')
@@ -518,7 +518,9 @@ io.on("connection", (socket) => {
             // refresh
             io.to(room_name).emit(
               "refresh game room",
-              roomsInfo.rooms.open[room_name]
+              roomsInfo.rooms.open[room_name],
+              true,
+              socket.userData
             );
             
           } else {
@@ -554,7 +556,7 @@ io.on("connection", (socket) => {
           // if this is last pass, erase last hand give prior to last player who played
           // also renew cur_order for next round
           // and update last hand. Last hand will be used to display cards on field
-          roomsInfo.rooms.hide[room_name].game.nextPlayer(selected_card);
+          let testLastPass = roomsInfo.rooms.hide[room_name].game.nextPlayer(selected_card);
 
           io.to(room_name).emit(
             "chat announce",
@@ -565,7 +567,8 @@ io.on("connection", (socket) => {
 
           io.to(room_name).emit(
             "refresh game room",
-            roomsInfo.rooms.hide[room_name]
+            roomsInfo.rooms.hide[room_name],
+            testLastPass
           );
         } else if (
           checkValidity(socket, roomsInfo.rooms.hide[room_name], selected_card)
@@ -677,7 +680,9 @@ io.on("connection", (socket) => {
             // refresh
             io.to(room_name).emit(
               "refresh game room",
-              roomsInfo.rooms.hide[room_name]
+              roomsInfo.rooms.hide[room_name],
+              true,
+              socket.userData
             );
             
           } else {

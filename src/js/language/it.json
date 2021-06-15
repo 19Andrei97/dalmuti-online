@@ -43,5 +43,6 @@
     "waitTurn": "Attendi il tuo turno",
     "noRoom": "Nessuna stanza trovata",
     "roomFull": "La stanza è piena",
-    "swap": " ha pagato le tasse a "
+    "swap": " ha pagato le tasse a ",
+    "placed": "ha giocato:"
 }

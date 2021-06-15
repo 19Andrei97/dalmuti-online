@@ -43,5 +43,6 @@
     "waitTurn": "Please wait for your turn.",
     "noRoom": "No room found.",
     "roomFull": "Room is full",
-    "swap": " paid his bills to "
+    "swap": " paid his bills to ",
+    "placed": "played:"
 }

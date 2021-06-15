@@ -155,7 +155,6 @@ $(function () {
   // pass turn, next order
   $("#play-btn").on("click", () => {
     if (!$("#play-btn").hasClass("disabled")) {
-      $("#play-btn").addClass("disabled");
       socket.emit("play", selected_card);
     }
   });
@@ -186,7 +185,7 @@ $(function () {
   });
 
   //Enter Game Room
-  socket.on("refresh game room", (roomData, passed) => {
+  socket.on("refresh game room", (roomData, passed, socketInfo) => {
     if (roomData.game.state == game_state.WAITING) {
       $("#ready-btn").removeClass("disabled");
     } else {
@@ -201,7 +200,7 @@ $(function () {
     // Show cards
     reloadCards(socket.id, roomData);
 
-    if(!passed) reloadField(roomData); // Reload field onliy not passed
+    if (passed) reloadField(roomData, socketInfo); // Reload field only not passed
 
     // enable first player
     setPlayable(roomData);
@@ -259,37 +258,61 @@ $(function () {
   function showPoints(leaderBoard) {
     $("#statistics").empty(); // Clear first
     // APPEND PLAYERS
-    console.log(leaderBoard);
     try {
       leaderBoard.forEach((val, i) => {
         let div;
         if (val[3] === "greaterDalmuti") {
           $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
-          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('greaterDalmuti');
+          $(`#${val[2]}`)
+            .parent()
+            .parent()
+            .children()
+            .eq(0)
+            .addClass("greaterDalmuti");
           div = $(
             `<div id=${val[2]} style="font-size: 1.5rem;" class="col w-100 pointsDiv"><i class="gg-crown"></i> ${val[1]}: ${val[0]}</div>`
           );
         } else if (val[3] === "lesserDalmuti") {
           $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
-          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('lesserDalmuti');
+          $(`#${val[2]}`)
+            .parent()
+            .parent()
+            .children()
+            .eq(0)
+            .addClass("lesserDalmuti");
           div = $(
             `<div id=${val[2]} style="font-size: 1.2rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
         } else if (val[3] === "lesserPeon") {
           $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
-          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('lesserPeon');
+          $(`#${val[2]}`)
+            .parent()
+            .parent()
+            .children()
+            .eq(0)
+            .addClass("lesserPeon");
           div = $(
             `<div id=${val[2]} style="font-size: 0.8rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
         } else if (val[3] === "greaterPeon") {
           $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
-          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('greaterPeon');
+          $(`#${val[2]}`)
+            .parent()
+            .parent()
+            .children()
+            .eq(0)
+            .addClass("greaterPeon");
           div = $(
             `<div id=${val[2]} style="font-size: 0.8rem;" class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
         } else {
           $(`#${val[2]}`).parent().parent().children().eq(0).removeClass();
-          $(`#${val[2]}`).parent().parent().children().eq(0).addClass('merchant');
+          $(`#${val[2]}`)
+            .parent()
+            .parent()
+            .children()
+            .eq(0)
+            .addClass("merchant");
           div = $(
             `<div id=${val[2]} class="col w-100 pointsDiv">${val[1]}: ${val[0]}</div>`
           );
@@ -298,7 +321,7 @@ $(function () {
         $("#statistics").append(div, spaceDiv);
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
     }
   }
 
@@ -375,15 +398,10 @@ $(function () {
   // RELOAD PLAYERS SLOTS
   function reloadSlots(roomData) {
     for (let i = 0; i < 8; i++) {
-      $("#player" + i).parent().removeClass('top')
+      $("#player" + i)
+        .parent()
+        .removeClass("top");
       $("#player" + i).empty();
-    }
-
-    for (let i = Object.keys(roomData.sockets).length; i < 8; i++) {
-      $("#player" + i).parent().addClass('top')
-      $("#player" + i).append(
-        '<i type="button" data-toggle="modal" data-target="#shareRoom" class="material-icons" style="font-size:36px">person_add</i>'
-      );
     }
 
     for (const [sid, user] of Object.entries(roomData.sockets)) {
@@ -437,23 +455,34 @@ $(function () {
           );
       }
     }
+
+    for (let i = 0; i < 8; i++) {
+      if ($("#player" + i).children().length === 0) {
+        $("#player" + i)
+          .parent()
+          .addClass("top");
+        $("#player" + i).append(
+          '<i type="button" data-toggle="modal" data-target="#shareRoom" class="material-icons" style="font-size:36px">person_add</i>'
+        );
+      }
+    }
   }
 
-  //! CARDS COLORS
+  //! CARDS STYLE
   var card_colors = [
-    "#a500df",
-    "#b6b6b6",
-    "#d49602",
-    "#fda4e3",
-    "#f7f935",
-    "#11a0bf",
-    "#31bf11",
-    "#00f6d7",
-    "#f60000",
-    "#1400ee",
-    "#875432",
-    "#545252",
-    "#7d4e9f",
+    "dalmuti",
+    "archbishop",
+    "marshal",
+    "baroness",
+    "abbess",
+    "knight",
+    "seamstress",
+    "mason",
+    "cook",
+    "shepherdess",
+    "stonecutter",
+    "peasant",
+    "jolly",
   ];
   var selected_card = {};
 
@@ -473,13 +502,16 @@ $(function () {
     });
     let actual_card_count = 1;
 
-    // Fade cards out
-    $($(".selected").get().reverse()).each(function (fadeInDiv) {
-      $(this)
-        .delay(fadeInDiv * 100)
-        .fadeOut(300);
-    });
-
+    // DO ANIMATION ONLY IF CAN PLAY CARDS
+    if (!$("#play-btn").hasClass("disabled")) {
+      // Fade cards out
+      $($(".selected").get().reverse()).each(function (fadeInDiv) {
+        $(this)
+          .delay(fadeInDiv * 100)
+          .fadeOut(300);
+      });
+      $("#play-btn").addClass("disabled");
+    }
     $(".selected")
       .promise()
       .done(function () {
@@ -490,9 +522,7 @@ $(function () {
           // BACKGROUND COLOR = card_colors[userData.hand[i] - 1]
           if (userData.hand[i] != -1) {
             $carddiv = $(
-              `<div class='cards text-center rounded' style='background-color:${
-                card_colors[userData.hand[i] - 1]
-              }'>${userData.hand[i]}</div>`
+              `<div class='cards text-center ${card_colors[userData.hand[i] - 1]}'></div>`
             );
 
             $carddiv.on("mouseenter", () => {
@@ -541,11 +571,17 @@ $(function () {
       });
   }
 
-  function reloadField(roomData) {
-    $("#field-section").empty();
+  ///TODOOOO FIIIIIIIIIIIIIIIIIIIIIIIXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXS
+  function reloadField(roomData, socketInfo) {
+    $("#field-section").children().each((i,val) => $(val).removeClass('active').fadeOut(300)).parent().empty()
+    // $("#field-section").promise().done(()=> $("#field-section").empty())
+    $("#whoPlayed").children().eq(0).fadeOut(300);
+    $("#whoPlayed").promise().done(()=> $("#whoPlayed").empty())
 
     if (roomData.game.state == game_state.PLAYING)
       if (roomData.game.last) {
+        $("#whoPlayed").text(`${socketInfo.nickname} ${language.placed}`)
+
         // to array
         let last_hand = roomData.game.last;
         delete last_hand.num;
@@ -559,20 +595,24 @@ $(function () {
         //console.log(last_array)
 
         for (let i = 0; i < last_array.length; i++) {
+          let backCard= $("<div class='flip-card-front backCard'>")
           let $carddiv = $(
-            `<div class='cards text-center fieldCards' style='display:none;width:70px;margin:5px;height:100px;background-color:${
-              card_colors[last_array[i] - 1]
-            }'>${last_array[i]}</div>`
+            `<div class='flip-card-back cards text-center fieldCards ${card_colors[last_array[i] - 1]}'></div>`
           );
-
-          $("#field-section").append($carddiv);
+          let parentDiv = $("<div class='flip-card-inner fieldCards' style='display:none;margin:3px;'>")
+          parentDiv.append(backCard, $carddiv)
+          $("#field-section").append(parentDiv);
         }
 
         $($(".fieldCards").get().reverse()).each(function (fadeInDiv) {
           $(this)
-            .delay(fadeInDiv * 200)
-            .fadeIn(500);
+            .delay(fadeInDiv * 100)
+            .fadeIn(300);
         });
+
+        $(".fieldCards").promise().done(()=> {
+          $(".flip-card .flip-card-inner").addClass('active')
+        })
       }
   }
 
