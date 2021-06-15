@@ -462,7 +462,7 @@ $(function () {
           .parent()
           .addClass("top");
         $("#player" + i).append(
-          '<i type="button" data-toggle="modal" data-target="#shareRoom" class="material-icons" style="font-size:36px">person_add</i>'
+          '<i data-toggle="modal" data-target="#shareRoom" class="material-icons" style="font-size:36px">person_add</i>'
         );
       }
     }

@@ -38,17 +38,17 @@
       <div class="row">
         <div class="col-sm-9 p-4" style="border-bottom: 5px solid var(--secondary1);"><b id="title">The Great
             Dalmuti</b></div>
-        <div id="newName" type="button" data-toggle="modal" style="font-size: x-large;"
+        <div id="newName" data-toggle="modal" style="font-size: x-large;"
           class="nickname col-sm-3 text-center p-4 bg-secondary1 font-weight-bold" data-target="#id02">placeholder</div>
       </div>
     </div>
 
     <!-- Listing Room-->
     <div class="row-sm-10 text-center">
-      <button class="btn bg-alert1 p-4 w-100 mt-2 col-sm-7 font-weight-bold" type="button" data-toggle="modal"
+      <button class="btn bg-alert1 p-4 w-100 mt-2 col-sm-7 font-weight-bold" data-toggle="modal"
         data-target="#id01" id="btnCreate">Create
         Room</button>
-      <button class="btn bg-alert2 p-4 w-100 mt-2 col-sm-3 font-weight-bold" type="button" data-toggle="modal"
+      <button class="btn bg-alert2 p-4 w-100 mt-2 col-sm-3 font-weight-bold" data-toggle="modal"
         data-target="#id03" id="btnJoin">Join Room</button>
     </div>
 
@@ -64,7 +64,7 @@
           <!-- Modal Header -->
           <div class="modal-header">
             <h4 class="modal-title" id="create">Create Room</h4>
-            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <button class="close" data-dismiss="modal">&times;</button>
           </div>
 
           <!-- Modal body -->
@@ -87,7 +87,7 @@
 
           <!-- Modal footer -->
           <div class="modal-footer">
-            <button type="button" class="btn bg-success1" data-dismiss="modal" id="new-room-create">Create</button>
+            <button class="btn bg-success1" data-dismiss="modal" id="new-room-create">Create</button>
           </div>
 
         </div>
@@ -102,7 +102,7 @@
           <!-- Modal Header -->
           <div class="modal-header">
             <h4 id="titleNickModal" class="modal-title">Update nickname</h4>
-            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <button  class="close" data-dismiss="modal">&times;</button>
           </div>
 
           <!-- Modal body -->
@@ -124,7 +124,7 @@
 
           <!-- Modal footer -->
           <div class="modal-footer">
-            <button type="button" class="btn bg-success1" data-dismiss="modal" id="set-nickname-ok">Save</button>
+            <button  class="btn bg-success1" data-dismiss="modal" id="set-nickname-ok">Save</button>
           </div>
 
         </div>
@@ -139,7 +139,7 @@
           <!-- Modal Header -->
           <div class="modal-header">
             <h4 class="modal-title" id="join">Join Room</h4>
-            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <button  class="close" data-dismiss="modal">&times;</button>
           </div>
 
           <!-- Modal body -->
@@ -154,7 +154,7 @@
 
           <!-- Modal footer -->
           <div class="modal-footer">
-            <button type="button" class="btn bg-success1" data-dismiss="modal" id="joinRoom">Join</button>
+            <button  class="btn bg-success1" data-dismiss="modal" id="joinRoom">Join</button>
           </div>
 
         </div>
@@ -167,7 +167,7 @@
   <div class="fixed-bottom alert bg-secondary1 alert-dismissible fade show mx-2" role="alert">
     <strong id="info">Information</strong>
     <a id="howTo" class="ml-2" target="_blank" href="/help">How to play?</a>
-    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <button  class="close" data-dismiss="alert" aria-label="Close">
       <span aria-hidden="true">&times;</span>
     </button>
   </div>
